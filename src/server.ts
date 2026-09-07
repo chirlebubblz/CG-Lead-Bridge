@@ -29,6 +29,48 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 /**
+ * 0. Test Endpoint: Simulate Inbound Lead into GHL Conversations
+ * Can be triggered directly via browser or curl to verify GHL setup
+ */
+app.all('/test/inbound', async (req: Request, res: Response) => {
+  try {
+    const name = (req.query.name as string) || req.body?.name || 'Yelp Test Lead';
+    const email = (req.query.email as string) || req.body?.email || 'yelp.test@cleangenie.com';
+    const message = (req.query.message as string) || req.body?.message || 'Hello! I need a quote for a 3-bedroom deep clean in Chicago.';
+    const leadId = 'test_lead_' + Date.now();
+
+    const contactId = await GHLService.findOrCreateContact({
+      name,
+      email,
+      phone: '+13125550199',
+      leadId,
+      source: 'Yelp',
+    });
+
+    const inboundResult = await GHLService.postInboundMessage({
+      contactId,
+      message,
+      leadId,
+      eventId: 'evt_' + Date.now(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Test lead dispatched to GoHighLevel!',
+      contactId,
+      ghlResponse: inboundResult,
+    });
+  } catch (err: any) {
+    const errorDetails = err.response?.data || err.message;
+    console.error('[Test Inbound Error]', errorDetails);
+    res.status(500).json({
+      success: false,
+      error: errorDetails,
+    });
+  }
+});
+
+/**
  * 1. Inbound Webhook from Yelp
  * Triggered when a new lead or message is created on Yelp
  */
