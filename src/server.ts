@@ -231,7 +231,7 @@ app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
     });
 
     const data: any = await response.json();
-    console.log('[GHL OAuth Exchange] Success:', data);
+    console.log('[GHL OAuth Exchange] Response:', JSON.stringify(data));
 
     if (data.access_token) {
       TokenStore.saveTokens({
@@ -239,9 +239,19 @@ app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
         ghlRefreshToken: data.refresh_token,
         ghlLocationId: data.locationId,
       });
+      res.send(`
+        <div style="font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px;">
+          <h2 style="color: #10b981;">✓ Clean Genie Lead Bridge Connected!</h2>
+          <p>Your GoHighLevel location (<code>${data.locationId || config.ghl.locationId}</code>) is now authorized.</p>
+          <div style="background: #f3f4f6; padding: 12px; border-radius: 6px; word-break: break-all; margin-top: 16px;">
+            <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: bold; color: #4b5563;">GHL Access Token (Copy and add to Render Env Vars as GHL_ACCESS_TOKEN):</p>
+            <code>${data.access_token}</code>
+          </div>
+        </div>
+      `);
+    } else {
+      res.status(400).send(`<h2>OAuth Error</h2><pre>${JSON.stringify(data, null, 2)}</pre>`);
     }
-
-    res.send('<h2>Clean Genie Lead Bridge Installed Successfully!</h2><p>Your HighLevel location is now connected. You can close this window.</p>');
   } catch (err) {
     console.error('[GHL OAuth Error]', err);
     res.status(500).send('HighLevel OAuth exchange failed');
