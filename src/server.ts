@@ -9,7 +9,15 @@ import { TokenStore } from './services/token-store';
 const app = express();
 app.use(express.json());
 
-// Health & Status
+// Root & Health Status
+app.get('/', (req: Request, res: Response) => {
+  res.json({
+    service: 'Clean Genie ↔ Yelp & Thumbtack Bridge',
+    status: 'online',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/health', (req: Request, res: Response) => {
   const tokens = TokenStore.getTokens();
   res.json({
@@ -199,7 +207,8 @@ app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
 });
 
 // Start Server
-app.listen(config.port, () => {
-  console.log(`[CleanGenie Lead Bridge] Running on port ${config.port}`);
+const HOST = '0.0.0.0';
+app.listen(config.port, HOST, () => {
+  console.log(`[CleanGenie Lead Bridge] Running on http://${HOST}:${config.port}`);
   CronService.init();
 });
