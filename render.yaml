@@ -1,0 +1,33 @@
+﻿services:
+  - type: web
+    name: cleangenie-lead-bridge
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: GHL_CLIENT_ID
+        sync: false
+      - key: GHL_CLIENT_SECRET
+        sync: false
+      - key: GHL_LOCATION_ID
+        sync: false
+      - key: GHL_CONVERSATION_PROVIDER_ID
+        sync: false
+      - key: GHL_ACCESS_TOKEN
+        sync: false
+      - key: YELP_CLIENT_ID
+        sync: false
+      - key: YELP_CLIENT_SECRET
+        sync: false
+      - key: YELP_BUSINESS_ID
+        sync: false
+      - key: YELP_ACCESS_TOKEN
+        sync: false
+      - key: YELP_REFRESH_TOKEN
+        sync: false
+      - key: BASE_URL
+        sync: false

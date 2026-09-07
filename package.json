@@ -1,0 +1,35 @@
+{
+  "name": "cleangenie-lead-bridge",
+  "version": "0.1.0",
+  "description": "Two-way conversation bridge connecting Yelp Leads (and Thumbtack) to GoHighLevel Conversations",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "gohighlevel",
+    "yelp-leads",
+    "thumbtack",
+    "conversation-provider",
+    "clean-genie"
+  ],
+  "author": "Antigravity",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.2"
+  }
+}
