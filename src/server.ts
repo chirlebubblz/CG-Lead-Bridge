@@ -207,9 +207,10 @@ app.get('/oauth/yelp/callback', async (req: Request, res: Response) => {
 });
 
 /**
- * 4. OAuth 2.0 Authorization Callback for GoHighLevel
+ * 4. OAuth 2.0 Authorization Callback for CRM / LeadConnector
+ * Supports generic /oauth/callback to comply with HighLevel's white-label naming rules
  */
-app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
+app.get(['/oauth/callback', '/oauth/crm/callback', '/oauth/ghl/callback'], async (req: Request, res: Response) => {
   const code = req.query.code as string;
   if (!code) {
     res.status(400).send('Missing authorization code');
@@ -217,6 +218,10 @@ app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
   }
 
   try {
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+    const host = req.get('host') || 'cg-lead-bridge.onrender.com';
+    const redirect_uri = `${proto}://${host}${req.path}`;
+
     const response = await fetch('https://services.leadconnectorhq.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -226,7 +231,7 @@ app.get('/oauth/ghl/callback', async (req: Request, res: Response) => {
         grant_type: 'authorization_code',
         code,
         user_type: 'Location',
-        redirect_uri: `${config.baseUrl}/oauth/ghl/callback`,
+        redirect_uri,
       }),
     });
 
