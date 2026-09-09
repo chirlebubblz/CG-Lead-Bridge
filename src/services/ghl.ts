@@ -83,26 +83,27 @@ export class GHLService {
     leadId: string;
     source?: string;
   }): Promise<string> {
-    // 1. Search by email or phone
+    // 1. Search by email or phone (GET /contacts/search/duplicate)
     const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
     try {
       if (details.email || details.phone) {
-        const searchRes = await axios.post(
-          searchUrl,
-          {
-            locationId: config.ghl.locationId,
-            email: details.email,
-            phone: details.phone,
-          },
-          { headers: this.getHeaders() }
-        );
+        const params: any = {
+          locationId: config.ghl.locationId,
+        };
+        if (details.email) params.email = details.email;
+        if (details.phone) params.number = details.phone;
+
+        const searchRes = await axios.get(searchUrl, {
+          params,
+          headers: this.getHeaders(),
+        });
 
         if (searchRes.data?.contact?.id) {
           return searchRes.data.contact.id;
         }
       }
     } catch (err) {
-      // If search returns 404 or no match, proceed to create
+      // Proceed to create if search finds no match
     }
 
     // 2. Create new contact
@@ -127,10 +128,18 @@ export class GHLService {
       ],
     };
 
-    const createRes = await axios.post(createUrl, createPayload, {
-      headers: this.getHeaders(),
-    });
-
-    return createRes.data?.contact?.id;
+    try {
+      const createRes = await axios.post(createUrl, createPayload, {
+        headers: this.getHeaders(),
+      });
+      return createRes.data?.contact?.id;
+    } catch (err: any) {
+      // If contact already exists in GHL, reuse matching contactId
+      if (err.response?.data?.meta?.contactId) {
+        console.log(`[GHLService] Contact exists (${err.response.data.meta.contactId}), reusing existing contact.`);
+        return err.response.data.meta.contactId;
+      }
+      throw err;
+    }
   }
 }

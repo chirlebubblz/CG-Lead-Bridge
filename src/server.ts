@@ -34,15 +34,17 @@ app.get('/health', (req: Request, res: Response) => {
  */
 app.all('/test/inbound', async (req: Request, res: Response) => {
   try {
-    const name = (req.query.name as string) || req.body?.name || 'Yelp Test Lead';
-    const email = (req.query.email as string) || req.body?.email || 'yelp.test@cleangenie.com';
+    const id = Date.now();
+    const name = (req.query.name as string) || req.body?.name || `Yelp Lead ${id.toString().slice(-4)}`;
+    const email = (req.query.email as string) || req.body?.email || `lead.${id}@cleangenie.com`;
+    const phone = (req.query.phone as string) || req.body?.phone || `+1312555${id.toString().slice(-4)}`;
     const message = (req.query.message as string) || req.body?.message || 'Hello! I need a quote for a 3-bedroom deep clean in Chicago.';
-    const leadId = 'test_lead_' + Date.now();
+    const leadId = 'test_lead_' + id;
 
     const contactId = await GHLService.findOrCreateContact({
       name,
       email,
-      phone: '+13125550199',
+      phone,
       leadId,
       source: 'Yelp',
     });
