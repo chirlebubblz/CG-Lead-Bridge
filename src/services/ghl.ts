@@ -39,16 +39,35 @@ export class GHLService {
   }): Promise<any> {
     const url = `${config.ghl.apiUrl}/conversations/messages/inbound`;
 
-    const body: GHLInboundPayload = {
-      type: 'Custom',
-      conversationProviderId: config.ghl.conversationProviderId,
+    // 1. If conversationProviderId exists, attempt Custom channel
+    if (config.ghl.conversationProviderId) {
+      try {
+        const body: any = {
+          type: 'Custom',
+          conversationProviderId: config.ghl.conversationProviderId,
+          contactId: payload.contactId,
+          message: payload.message,
+          altId: payload.eventId || payload.leadId,
+        };
+        const res = await axios.post(url, body, {
+          headers: { ...this.getHeaders(), Version: '2021-04-15' },
+        });
+        return res.data;
+      } catch (err: any) {
+        console.warn('[GHLService] Custom provider delivery failed, falling back to Live_Chat channel:', err.response?.data?.message || err.message);
+      }
+    }
+
+    // 2. Direct Fallback: Native Live_Chat channel into GHL Conversations
+    const fallbackBody: any = {
+      type: 'Live_Chat',
       contactId: payload.contactId,
       message: payload.message,
       altId: payload.eventId || payload.leadId,
     };
 
-    const res = await axios.post(url, body, {
-      headers: this.getHeaders(),
+    const res = await axios.post(url, fallbackBody, {
+      headers: { ...this.getHeaders(), Version: '2021-04-15' },
     });
 
     return res.data;
