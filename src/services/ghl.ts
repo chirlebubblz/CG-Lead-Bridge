@@ -39,8 +39,8 @@ export class GHLService {
   }): Promise<any> {
     const url = `${config.ghl.apiUrl}/conversations/messages/inbound`;
 
-    // 1. If conversationProviderId exists, attempt Custom channel
-    if (config.ghl.conversationProviderId) {
+    // 1. If an active conversationProviderId is configured, attempt Custom channel
+    if (config.ghl.conversationProviderId && config.ghl.conversationProviderId !== '') {
       try {
         const body: any = {
           type: 'Custom',
@@ -54,11 +54,11 @@ export class GHLService {
         });
         return res.data;
       } catch (err: any) {
-        console.warn('[GHLService] Custom provider delivery failed, falling back to Live_Chat channel:', err.response?.data?.message || err.message);
+        // Silently fall back to native Live_Chat channel
       }
     }
 
-    // 2. Direct Fallback: Native Live_Chat channel into GHL Conversations
+    // 2. Default standard: Native Live_Chat channel directly into GHL Conversations
     const fallbackBody: any = {
       type: 'Live_Chat',
       contactId: payload.contactId,
