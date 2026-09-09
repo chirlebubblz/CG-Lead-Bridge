@@ -77,9 +77,39 @@ app.all('/test/inbound', async (req: Request, res: Response) => {
  * Triggered when a new lead or message is created on Yelp
  */
 app.post('/webhook/yelp', async (req: Request, res: Response) => {
-  res.status(200).send('OK'); // Acknowledge Yelp immediately with 2XX
+  res.status(200).send('OK'); // Acknowledge Yelp/Zapier immediately with 2XX
 
   try {
+    const body = req.body;
+
+    // 1. Direct Zapier payload format (contains actual message, name, email, phone)
+    const directMessage = body?.message || body?.text || body?.body;
+    if (directMessage) {
+      const name = body?.name || body?.customer_name || 'Yelp Customer';
+      const email = body?.email || body?.customer_email || body?.temporary_email_address;
+      const phone = body?.phone || body?.customer_phone || body?.phone_number;
+      const leadId = body?.lead_id || body?.conversation_id || ('yelp_' + Date.now());
+
+      const contactId = await GHLService.findOrCreateContact({
+        name,
+        email,
+        phone,
+        leadId,
+        source: 'Yelp',
+      });
+
+      await GHLService.postInboundMessage({
+        contactId,
+        message: directMessage,
+        leadId,
+        eventId: body?.event_id,
+      });
+
+      console.log(`[Yelp Ingest via Zapier] Ingested "${directMessage}" for ${name} into GHL contact ${contactId}`);
+      return;
+    }
+
+    // 2. Standard Yelp Webhook updates array
     const updates = req.body?.data?.updates || [];
     for (const update of updates) {
       const { lead_id, event_id, event_type } = update;
