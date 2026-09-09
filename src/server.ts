@@ -247,7 +247,8 @@ app.get(['/oauth/yelp/callback', '/oauth/callback/yelp'], async (req: Request, r
 
     // Automatically register Yelp Leads webhook
     try {
-      const webhookRes = await YelpService.subscribeToWebhook();
+      const webhookUrl = `${proto}://${host}/webhook/yelp`;
+      const webhookRes = await YelpService.subscribeWebhook(webhookUrl);
       console.log('[Yelp OAuth] Webhook registered:', webhookRes);
     } catch (whErr: any) {
       console.warn('[Yelp OAuth] Webhook auto-registration note:', whErr.response?.data || whErr.message);
