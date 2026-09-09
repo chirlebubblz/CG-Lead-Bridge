@@ -203,7 +203,7 @@ app.post('/webhook/ghl-delivery', async (req: Request, res: Response) => {
 /**
  * 3. OAuth 2.0 Authorization Callback for Yelp
  */
-app.get('/oauth/yelp/callback', async (req: Request, res: Response) => {
+app.get(['/oauth/yelp/callback', '/oauth/callback/yelp'], async (req: Request, res: Response) => {
   const code = req.query.code as string;
   if (!code) {
     res.status(400).send('Missing authorization code');
