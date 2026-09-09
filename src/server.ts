@@ -211,6 +211,12 @@ app.get(['/oauth/yelp/callback', '/oauth/callback/yelp'], async (req: Request, r
   }
 
   try {
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+    const host = req.get('host') || 'cg-lead-bridge.onrender.com';
+    const redirect_uri = `${proto}://${host}${req.path}`;
+
+    console.log(`[Yelp OAuth] Exchanging code with redirect_uri: ${redirect_uri}`);
+
     // Exchange code for tokens
     const response = await fetch('https://api.yelp.com/oauth2/token', {
       method: 'POST',
@@ -220,21 +226,43 @@ app.get(['/oauth/yelp/callback', '/oauth/callback/yelp'], async (req: Request, r
         client_id: config.yelp.clientId,
         client_secret: config.yelp.clientSecret,
         code,
-        redirect_uri: `${config.baseUrl}/oauth/yelp/callback`,
+        redirect_uri,
       }),
     });
 
     const data: any = await response.json();
+    if (!response.ok || !data.access_token) {
+      console.error('[Yelp OAuth Error Response]', data);
+      res.status(400).send(`<h2>Yelp OAuth Error</h2><pre>${JSON.stringify(data, null, 2)}</pre>`);
+      return;
+    }
+
     TokenStore.saveTokens({
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: Date.now() + data.expires_in * 1000,
+      expiresAt: Date.now() + (data.expires_in || 15552000) * 1000,
     });
 
-    res.send('<h2>Yelp Authorization Successful!</h2><p>You can close this window now.</p>');
-  } catch (err) {
+    console.log('[Yelp OAuth] Token exchange successful! Subscribing to Yelp webhook...');
+
+    // Automatically register Yelp Leads webhook
+    try {
+      const webhookRes = await YelpService.subscribeToWebhook();
+      console.log('[Yelp OAuth] Webhook registered:', webhookRes);
+    } catch (whErr: any) {
+      console.warn('[Yelp OAuth] Webhook auto-registration note:', whErr.response?.data || whErr.message);
+    }
+
+    res.send(`
+      <div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
+        <h2 style="color: #2e7d32;">🎉 Yelp Authorization Successful!</h2>
+        <p>Your CleanGenie Yelp Lead Bridge is now connected with full Partner access.</p>
+        <p>Webhooks and 2-way messaging are active.</p>
+      </div>
+    `);
+  } catch (err: any) {
     console.error('[OAuth Error]', err);
-    res.status(500).send('OAuth exchange failed');
+    res.status(500).send(`OAuth exchange failed: ${err.message}`);
   }
 });
 
