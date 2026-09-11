@@ -76,3 +76,12 @@ npm start
 - `POST /webhook/ghl-delivery?channel=thumbtack` - Receives outbound replies from GHL for Thumbtack.
 - `GET /oauth/yelp/callback` - Yelp OAuth 2.0 authorization code exchange.
 - `GET /health` - Health check & webhook expiration status.
+
+---
+
+## Technical Runbooks & Production Guides
+- **[Yelp ↔ GoHighLevel Integration & Troubleshooting Runbook](docs/YELP_GHL_INTEGRATION_RUNBOOK.md)**:
+  - Dual Email routing (`leadsapi+...` vs `reply+...`) & duplicate contact prevention.
+  - Yelp `Phone Availability` trigger configuration for 100% phone number capture.
+  - Survey questionnaire array mapping & GHL auto-responder guardrails.
+
