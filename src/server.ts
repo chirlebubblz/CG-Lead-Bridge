@@ -85,11 +85,24 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
     if (directMessage) {
-      let name = (body?.name || body?.customer_name || 'Yelp Customer').trim();
-      // Clean up common Yelp email sender suffixes like "Jordan S. via Yelp" or "Jordan on Yelp"
+      let name = (body?.name || body?.customer_name || '').trim();
+      // If name is missing, generic, or Yelp inbox, check subject as fallback
+      const subject = body?.subject || '';
+      if ((!name || name === 'Yelp Customer' || name === 'Yelp' || name === 'Yelp Inbox') && subject) {
+        if (/sent a message/i.test(subject)) {
+          name = subject.split(/sent a message/i)[0].trim();
+        }
+      }
+      // Clean up common Yelp email sender suffixes
       name = name.replace(/\s+(via|on|-)\s+Yelp.*$/i, '').trim();
+      name = name.replace(/\s+sent a message.*$/i, '').trim();
+      if (!name) name = 'Yelp Customer';
 
-      const email = body?.email || body?.customer_email || body?.temporary_email_address;
+      let email = body?.email || body?.customer_email || body?.temporary_email_address;
+      // Do not treat Zapier internal receiving address as a customer's email
+      if (email && email.includes('zapiermail.com')) {
+        email = undefined;
+      }
       const phone = body?.phone || body?.customer_phone || body?.phone_number;
       const leadId = body?.lead_id || body?.conversation_id || ('yelp_' + Date.now());
 
