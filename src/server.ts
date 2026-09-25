@@ -120,8 +120,8 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       if (!name) name = 'Yelp Customer';
 
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
-      // Do not treat Zapier internal receiving address as a customer's email
-      if (email && email.includes('zapiermail.com')) {
+      // Never treat Zapier addresses or the business owner's email as the customer's email
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco'))) {
         email = undefined;
       }
       const phone = body?.phone || body?.customer_phone || body?.phone_number;
