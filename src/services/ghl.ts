@@ -102,6 +102,24 @@ export class GHLService {
           return searchRes.data.contact.id;
         }
       }
+      // 2. Fallback: Search by Name if email/phone search yields no result
+      if (details.name && details.name.trim() !== '' && details.name !== 'Yelp Customer') {
+        const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+          params: {
+            locationId: config.ghl.locationId,
+            query: details.name.trim(),
+          },
+          headers: this.getHeaders(),
+        });
+        const match = queryRes.data?.contacts?.find((c: any) => 
+          (c.contactName && c.contactName.toLowerCase().includes(details.name!.toLowerCase())) ||
+          (c.firstName && c.firstName.toLowerCase() === details.name!.toLowerCase().split(' ')[0])
+        );
+        if (match?.id) {
+          console.log(`[GHLService] Matched contact by name "${details.name}" -> ${match.id}`);
+          return match.id;
+        }
+      }
     } catch (err) {
       // Proceed to create if search finds no match
     }
