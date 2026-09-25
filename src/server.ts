@@ -18,6 +18,18 @@ app.get('/', (req: Request, res: Response) => {
   });
 });
 
+const recentLogs: Array<{ time: string; msg: string; data?: any }> = [];
+function addLog(msg: string, data?: any) {
+  const entry = { time: new Date().toISOString(), msg, data };
+  recentLogs.unshift(entry);
+  if (recentLogs.length > 50) recentLogs.pop();
+  console.log(`[${entry.time}] ${msg}`, data ? JSON.stringify(data) : '');
+}
+
+app.get('/logs', (req: Request, res: Response) => {
+  res.json({ logs: recentLogs });
+});
+
 app.get('/health', (req: Request, res: Response) => {
   const tokens = TokenStore.getTokens();
   res.json({
@@ -81,6 +93,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
 
   try {
     const body = req.body;
+    addLog('[Yelp Webhook] Received webhook POST', body);
 
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
@@ -128,7 +141,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         eventId: body?.event_id,
       });
 
-      console.log(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId}`);
+      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId}`);
       return;
     }
 
