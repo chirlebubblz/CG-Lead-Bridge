@@ -85,10 +85,20 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
     if (directMessage) {
-      const name = body?.name || body?.customer_name || 'Yelp Customer';
+      let name = (body?.name || body?.customer_name || 'Yelp Customer').trim();
+      // Clean up common Yelp email sender suffixes like "Jordan S. via Yelp" or "Jordan on Yelp"
+      name = name.replace(/\s+(via|on|-)\s+Yelp.*$/i, '').trim();
+
       const email = body?.email || body?.customer_email || body?.temporary_email_address;
       const phone = body?.phone || body?.customer_phone || body?.phone_number;
       const leadId = body?.lead_id || body?.conversation_id || ('yelp_' + Date.now());
+
+      let cleanMessage = directMessage.trim();
+      // If message contains full Yelp email body, extract the real message text
+      const yelpWroteMatch = cleanMessage.match(/(?:wrote|sent a message):\s*\n+([\s\S]+?)(?:\n\s*Reply to this email|\n\s*View on Yelp|\n\s*Respond to|\n\s*Sent from my|$)/i);
+      if (yelpWroteMatch && yelpWroteMatch[1]) {
+        cleanMessage = yelpWroteMatch[1].trim();
+      }
 
       const contactId = await GHLService.findOrCreateContact({
         name,
@@ -100,12 +110,12 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
 
       await GHLService.postInboundMessage({
         contactId,
-        message: directMessage,
+        message: cleanMessage,
         leadId,
         eventId: body?.event_id,
       });
 
-      console.log(`[Yelp Ingest via Zapier] Ingested "${directMessage}" for ${name} into GHL contact ${contactId}`);
+      console.log(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId}`);
       return;
     }
 
