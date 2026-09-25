@@ -99,16 +99,24 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     const directMessage = body?.message || body?.text || body?.body;
     if (directMessage) {
       let name = (body?.name || body?.customer_name || '').trim();
-      // If name is missing, generic, or Yelp inbox, check subject as fallback
       const subject = body?.subject || '';
-      if ((!name || name === 'Yelp Customer' || name === 'Yelp' || name === 'Yelp Inbox') && subject) {
-        if (/sent a message/i.test(subject)) {
+
+      // Extract customer name from subject or body if missing or generic Yelp sender
+      if (!name || ['Yelp Customer', 'Yelp', 'Yelp Inbox'].includes(name)) {
+        if (/response to\s+(.+)$/i.test(subject)) {
+          name = subject.match(/response to\s+(.+)$/i)![1].trim();
+        } else if (/sent a message/i.test(subject)) {
           name = subject.split(/sent a message/i)[0].trim();
+        } else if (/,\s*([^\r\n,]+?)\s+has replied/i.test(directMessage)) {
+          name = directMessage.match(/,\s*([^\r\n,]+?)\s+has replied/i)![1].trim();
+        } else if (/New Message from\s+([^\r\n]+)/i.test(directMessage)) {
+          name = directMessage.match(/New Message from\s+([^\r\n]+)/i)![1].trim();
         }
       }
       // Clean up common Yelp email sender suffixes
       name = name.replace(/\s+(via|on|-)\s+Yelp.*$/i, '').trim();
       name = name.replace(/\s+sent a message.*$/i, '').trim();
+      name = name.replace(/^RE:\s*/i, '').trim();
       if (!name) name = 'Yelp Customer';
 
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
@@ -124,6 +132,13 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       const yelpWroteMatch = cleanMessage.match(/(?:wrote|sent a message):\s*\n+([\s\S]+?)(?:\n\s*Reply to this email|\n\s*View on Yelp|\n\s*Respond to|\n\s*Sent from my|$)/i);
       if (yelpWroteMatch && yelpWroteMatch[1]) {
         cleanMessage = yelpWroteMatch[1].trim();
+      } else if (cleanMessage.includes('Respond Now') || cleanMessage.includes('Or simply respond')) {
+        const marker = cleanMessage.includes('Respond Now') ? 'Respond Now' : 'Or simply respond';
+        const textBefore = cleanMessage.slice(0, cleanMessage.indexOf(marker));
+        const lines = textBefore.split('\n').map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith('|') && !l.startsWith('---') && !l.startsWith('**') && !l.startsWith('##') && !l.startsWith('New Message') && !l.startsWith('Hi ') && !l.startsWith('['));
+        if (lines.length > 0) {
+          cleanMessage = lines[lines.length - 1];
+        }
       }
 
       const contactId = await GHLService.findOrCreateContact({
