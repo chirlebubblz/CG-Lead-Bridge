@@ -11,8 +11,29 @@ export interface GHLInboundPayload {
   altId?: string; // e.g. Yelp event_id or lead_id
 }
 
+const KNOWN_TOKENS: Record<string, string> = {
+  // Jacksonville Cleaning Co
+  'EKXbBmGEV6hnLQFQRPc7': 'pit-b26f30e8-7d61-4c6f-b925-2ed84ececcc0',
+  // Capable Clean
+  's94e80clit6bCL9VBWgl': 'pit-5cd3741b-9fde-4039-91da-c869573e74ce',
+};
+
 export class GHLService {
-  private static getAccessToken(): string {
+  private static getAccessToken(locationId?: string): string {
+    if (locationId) {
+      if (process.env.GHL_TOKENS) {
+        try {
+          const map = JSON.parse(process.env.GHL_TOKENS);
+          if (map[locationId]) return map[locationId];
+        } catch (e) {}
+      }
+      if (process.env[`GHL_TOKEN_${locationId}`]) {
+        return process.env[`GHL_TOKEN_${locationId}`]!;
+      }
+      if (KNOWN_TOKENS[locationId]) {
+        return KNOWN_TOKENS[locationId];
+      }
+    }
     const saved = TokenStore.getTokens();
     if (saved && saved.ghlAccessToken) {
       return saved.ghlAccessToken;
@@ -20,9 +41,9 @@ export class GHLService {
     return config.ghl.accessToken;
   }
 
-  private static getHeaders() {
+  private static getHeaders(locationId?: string) {
     return {
-      Authorization: `Bearer ${this.getAccessToken()}`,
+      Authorization: `Bearer ${this.getAccessToken(locationId)}`,
       Version: '2021-07-28',
       'Content-Type': 'application/json',
     };
@@ -36,8 +57,10 @@ export class GHLService {
     message: string;
     leadId: string;
     eventId?: string;
+    locationId?: string;
   }): Promise<any> {
     const url = `${config.ghl.apiUrl}/conversations/messages/inbound`;
+    const locId = payload.locationId || config.ghl.locationId;
 
     // 1. If an active conversationProviderId is configured, attempt Custom channel
     if (config.ghl.conversationProviderId && config.ghl.conversationProviderId !== '') {
@@ -50,7 +73,7 @@ export class GHLService {
           altId: payload.eventId || payload.leadId,
         };
         const res = await axios.post(url, body, {
-          headers: { ...this.getHeaders(), Version: '2021-04-15' },
+          headers: { ...this.getHeaders(locId), Version: '2021-04-15' },
         });
         return res.data;
       } catch (err: any) {
@@ -67,7 +90,7 @@ export class GHLService {
     };
 
     const res = await axios.post(url, fallbackBody, {
-      headers: { ...this.getHeaders(), Version: '2021-04-15' },
+      headers: { ...this.getHeaders(locId), Version: '2021-04-15' },
     });
 
     return res.data;
@@ -82,20 +105,24 @@ export class GHLService {
     phone?: string;
     leadId: string;
     source?: string;
+    locationId?: string;
   }): Promise<string> {
+    const locId = details.locationId || config.ghl.locationId;
+    const headers = this.getHeaders(locId);
+
     // 1. Search by email or phone (GET /contacts/search/duplicate)
     const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
     try {
       if (details.email || details.phone) {
         const params: any = {
-          locationId: config.ghl.locationId,
+          locationId: locId,
         };
         if (details.email) params.email = details.email;
         if (details.phone) params.number = details.phone;
 
         const searchRes = await axios.get(searchUrl, {
           params,
-          headers: this.getHeaders(),
+          headers,
         });
 
         if (searchRes.data?.contact?.id) {
@@ -106,17 +133,17 @@ export class GHLService {
       if (details.name && details.name.trim() !== '' && details.name !== 'Yelp Customer') {
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: {
-            locationId: config.ghl.locationId,
+            locationId: locId,
             query: details.name.trim(),
           },
-          headers: this.getHeaders(),
+          headers,
         });
         const match = queryRes.data?.contacts?.find((c: any) => 
           (c.contactName && c.contactName.toLowerCase().includes(details.name!.toLowerCase())) ||
           (c.firstName && c.firstName.toLowerCase() === details.name!.toLowerCase().split(' ')[0])
         );
         if (match?.id) {
-          console.log(`[GHLService] Matched contact by name "${details.name}" -> ${match.id}`);
+          console.log(`[GHLService] Matched contact by name "${details.name}" in location ${locId} -> ${match.id}`);
           return match.id;
         }
       }
@@ -131,7 +158,7 @@ export class GHLService {
     const lastName = names.slice(1).join(' ') || '';
 
     const createPayload: any = {
-      locationId: config.ghl.locationId,
+      locationId: locId,
       firstName,
       lastName,
       email: details.email,
@@ -148,7 +175,7 @@ export class GHLService {
 
     try {
       const createRes = await axios.post(createUrl, createPayload, {
-        headers: this.getHeaders(),
+        headers,
       });
       return createRes.data?.contact?.id;
     } catch (err: any) {

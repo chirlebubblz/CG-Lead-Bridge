@@ -47,6 +47,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.all('/test/inbound', async (req: Request, res: Response) => {
   try {
     const id = Date.now();
+    const locationId = (req.query.location_id as string) || (req.query.locationId as string) || req.body?.location_id || req.body?.locationId || config.ghl.locationId;
     const name = (req.query.name as string) || req.body?.name || `Yelp Lead ${id.toString().slice(-4)}`;
     const email = (req.query.email as string) || req.body?.email || `lead.${id}@cleangenie.com`;
     const phone = (req.query.phone as string) || req.body?.phone || `+1312555${id.toString().slice(-4)}`;
@@ -59,6 +60,7 @@ app.all('/test/inbound', async (req: Request, res: Response) => {
       phone,
       leadId,
       source: 'Yelp',
+      locationId,
     });
 
     const inboundResult = await GHLService.postInboundMessage({
@@ -66,11 +68,13 @@ app.all('/test/inbound', async (req: Request, res: Response) => {
       message,
       leadId,
       eventId: 'evt_' + Date.now(),
+      locationId,
     });
 
     res.json({
       success: true,
       message: 'Test lead dispatched to GoHighLevel!',
+      locationId,
       contactId,
       ghlResponse: inboundResult,
     });
@@ -94,6 +98,8 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
   try {
     const body = req.body;
     addLog('[Yelp Webhook] Received webhook POST', body);
+
+    const locationId = body?.location_id || body?.locationId || body?.location || config.ghl.locationId;
 
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
@@ -121,7 +127,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
 
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean'))) {
         email = undefined;
       }
       const phone = body?.phone || body?.customer_phone || body?.phone_number;
@@ -147,6 +153,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         phone,
         leadId,
         source: 'Yelp',
+        locationId,
       });
 
       await GHLService.postInboundMessage({
@@ -154,9 +161,10 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         message: cleanMessage,
         leadId,
         eventId: body?.event_id,
+        locationId,
       });
 
-      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId}`);
+      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId} (loc: ${locationId})`);
       return;
     }
 

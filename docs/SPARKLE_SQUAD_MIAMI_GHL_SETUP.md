@@ -44,19 +44,20 @@ Standardized lifecycle tags have been provisioned:
 
 ---
 
-## 3. Pipelines & Opportunity Routing
+## 3. Dedicated Yelp Pipeline (Created & Live via API)
 
-Target Pipeline: **`Pipeline 2 - New Leads`** (`GfeGZCPYan5Ee64r6Jlm`)
+Target Pipeline: **`Pipeline 6 - Yelp Leads`** (`RhbEvMN7bsMd2bekssNc`)
 
-| Stage | Stage ID | Yelp Ingestion Role |
+| Stage Name | Stage ID | Yelp Ingestion Role |
 | :--- | :--- | :--- |
-| **New Leads** | `339f2ea4-5834-451d-8f2c-dfd2094d7aad` | **Initial landing stage for every new Yelp lead** |
-| **No Answer** | `795b7285-865a-454a-871c-1214b4d8f96e` | When customer doesn't respond to greeting |
-| **Quoted** | `17256fea-c5dd-4dcf-a749-6ee801efdc7a` | Moved when quote is delivered |
-| **Follow Up (Manual)** | `a2143231-fe72-4a4c-9108-afb1092077d6` | Rep manual follow up |
-| **Follow Up (Automated)** | `9f5d699f-ec97-42f2-bfd7-47670f61ecce` | Drip sequence |
-| **Interested but not booked**| `1866490f-37e5-400e-a97b-c942bc6881ce` | Active interest |
-| **Not Qualified** | `c7ada710-e6d6-48e8-b69a-37689a9c75da` | Outside service area / declined |
+| **New Leads** | `1dac1178-efc1-4f67-b508-b7fe4b0cc14b` | **Initial landing stage for every new Yelp lead** |
+| **No Answer** | `a8b77781-c065-471d-a9fe-40f8b008eed5` | When customer doesn't respond to greeting |
+| **Quoted** | `638fd182-787e-4076-83ee-d4e84e6003c0` | Moved when quote is delivered |
+| **Follow Up (Manual)** | `2065f7f1-bc97-49af-8717-24e5d00c0a90` | Rep manual follow up |
+| **Follow Up (Automated)** | `9ec19e68-2640-4639-9ae7-7248d28ae341` | Drip sequence |
+| **Interested but not booked**| `fd9fc819-f357-4eb0-8f01-22e50106b240` | Active interest |
+| **Not Qualified** | `a7903bea-6137-4ced-83c7-8983d1ab1e5a` | Outside service area / declined |
+| **Closed Won** | `d499bc88-0911-4f9e-b2fc-00e3b56d9111` | Successfully booked job |
 
 ---
 
@@ -67,8 +68,8 @@ Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
 ### Workflow 1: `(Yelp Leads) Inbound Lead Intake & Auto-Responder`
 - **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
 - **Action 1: Create/Update Opportunity:**
-  - Pipeline: `Pipeline 2 - New Leads`
-  - Stage: `New Leads`
+  - Pipeline: `Pipeline 6 - Yelp Leads` (`RhbEvMN7bsMd2bekssNc`)
+  - Stage: `New Leads` (`1dac1178-efc1-4f67-b508-b7fe4b0cc14b`)
   - Opportunity Name: `Yelp - {{contact.name}}`
 - **Action 2: Wait (90 Seconds):**
   - Essential buffer: allows Yelp's companion `Phone Availability` zap/event to arrive and populate the phone number before sending the first response.
@@ -94,7 +95,7 @@ Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
 
 ### Zap 1: Yelp Leads ➔ GoHighLevel
 - **Trigger:** Yelp Leads ➔ `New Lead`
-- **Action:** LeadConnector ➔ `Create/Update Contact`
+- **Action 1:** LeadConnector ➔ `Create/Update Contact`
   - **Location:** `ThUMNqsKmDfYKMF0jsBb` (The Sparkle Squad Co)
   - **First Name / Last Name:** Lead Name
   - **Email:** `leadsapi+...` (Temporary Email from Yelp)
@@ -105,10 +106,36 @@ Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
   - **Yelp Cleaning Frequency:** Survey Answer [Frequency]
   - **Yelp Notes / Customer Request:** `Project Summary` / Survey text
   - **Yelp Lead ID:** `Lead ID`
+- **Action 2:** LeadConnector ➔ `Create/Update Opportunity`
+  - **Pipeline:** `Pipeline 6 - Yelp Leads` (`RhbEvMN7bsMd2bekssNc`)
+  - **Stage:** `New Leads` (`1dac1178-efc1-4f67-b508-b7fe4b0cc14b`)
+  - **Opportunity Name:** `Yelp - {{contact.name}}`
 
 ### Zap 2 (Companion): Yelp Phone Availability ➔ Update Contact
 - **Trigger:** Yelp Leads ➔ `Phone Availability`
 - **Action:** LeadConnector ➔ `Create/Update Contact`
+  - **Location:** `ThUMNqsKmDfYKMF0jsBb`
   - **Email:** `leadsapi+...` (matches existing record)
   - **Phone:** `Phone Number` (from Yelp step 1)
   - **Tags:** `yelp-phone-captured`
+
+---
+
+## 6. Email-to-Webhook Bridge for Ongoing Messages
+
+To receive subsequent chat bubbles sent by consumers on Yelp directly into GHL Conversations:
+
+1. **Gmail Auto-Forwarding Filter (on `info@thesparklesquadco.com` or manager email):**
+   - **From:** `yelp.com`
+   - **Has the words:** `The Sparkle Squad Co` (or `Sparkle Squad`)
+   - **Action:** Forward to Zapier Inbound Email Box (e.g. `sparklesquad.[id]@zapiermail.com`).
+2. **Zapier Inbound Email ➔ Webhook POST:**
+   - **URL:** `https://cg-lead-bridge.onrender.com/webhook/yelp`
+   - **Payload Type:** `json`
+   - **Mapping:**
+     - `name`: `1. From Name`
+     - `subject`: `1. Subject`
+     - `message`: `1. Body Plain`
+     - `email`: *(Leave blank)*
+3. **Outbound Messaging:**
+   - When agents respond to `leadsapi+<hex>@messaging.yelp.com` via GHL Conversations, Yelp delivers the message directly to the customer's Yelp app chat bubble.
