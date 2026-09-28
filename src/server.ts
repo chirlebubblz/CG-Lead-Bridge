@@ -107,6 +107,14 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       const subject = body?.subject || '';
       let name = (body?.name || body?.customer_name || '').trim();
 
+      // Ignore Yelp administrative/system emails (e.g. email verifications, manager invitations)
+      const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice/i.test(subject) ||
+                            /confirm your email address on yelp|has invited you to manage/i.test(directMessage);
+      if (isSystemEmail) {
+        addLog('[Yelp Webhook] Ignored Yelp system/administrative notification', { subject, name });
+        return res.status(200).send('IGNORED_SYSTEM_NOTIFICATION');
+      }
+
       // Check if this is an initial Yelp Quote Request with questionnaire data
       const isNewQuote = /requested a quote|How many bedrooms|new .* cleaning request/i.test(directMessage);
 
