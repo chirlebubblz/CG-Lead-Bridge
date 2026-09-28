@@ -181,6 +181,7 @@ export class GHLService {
 
     const createPayload: any = {
       locationId: locId,
+      name: `${firstName} ${lastName}`.trim(),
       firstName,
       lastName,
       email: details.email,
