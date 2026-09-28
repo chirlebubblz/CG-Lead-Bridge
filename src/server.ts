@@ -150,7 +150,10 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         email = `leadsapi+${leadId}@messaging.yelp.com`;
       }
 
-      const phone = body?.phone || body?.customer_phone || body?.phone_number;
+      let phone = body?.phone || body?.customer_phone || body?.phone_number;
+      if (phone && (phone.includes('8777679357') || phone.includes('877-767-9357') || phone.includes('877.767.9357') || phone.includes('767-9357') || phone.includes('855-380-9357') || phone.includes('8553809357'))) {
+        phone = undefined;
+      }
 
       let cleanMessage = directMessage.trim();
       const customFields: Array<{ key?: string; id?: string; value: any }> = [];
