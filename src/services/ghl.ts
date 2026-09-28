@@ -18,6 +18,19 @@ const KNOWN_TOKENS: Record<string, string> = {
   's94e80clit6bCL9VBWgl': 'pit-5cd3741b-9fde-4039-91da-c869573e74ce',
 };
 
+const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
+  // Capable Clean
+  's94e80clit6bCL9VBWgl': {
+    pipelineId: 'GM4XXE47iTC20dCxblHp',
+    stageId: 'e24f6709-f5ad-4952-9ce0-d1f68ffa10f3',
+  },
+  // Jacksonville Cleaning Co
+  'EKXbBmGEV6hnLQFQRPc7': {
+    pipelineId: '7ft69hadg5z9b7YrVGpJ',
+    stageId: '631f6e4a-3f34-433e-8b61-11f9c7f862d0',
+  },
+};
+
 export class GHLService {
   private static getAccessToken(locationId?: string): string {
     if (locationId) {
@@ -106,6 +119,8 @@ export class GHLService {
     leadId: string;
     source?: string;
     locationId?: string;
+    isNewLead?: boolean;
+    customFields?: Array<{ id?: string; key?: string; value: any }>;
   }): Promise<string> {
     const locId = details.locationId || config.ghl.locationId;
     const headers = this.getHeaders(locId);
@@ -129,8 +144,8 @@ export class GHLService {
           return searchRes.data.contact.id;
         }
       }
-      // 2. Fallback: Search by Name if email/phone search yields no result
-      if (details.name && details.name.trim() !== '' && details.name !== 'Yelp Customer') {
+      // 2. Fallback: Search by Name only if this is NOT an explicit new quote request
+      if (!details.isNewLead && details.name && details.name.trim() !== '' && details.name !== 'Yelp Customer') {
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: {
             locationId: locId,
@@ -155,7 +170,14 @@ export class GHLService {
     const createUrl = `${config.ghl.apiUrl}/contacts/`;
     const names = (details.name || 'Yelp Customer').split(' ');
     const firstName = names[0];
-    const lastName = names.slice(1).join(' ') || '';
+    const lastName = names.slice(1).join(' ') || '(Yelp)';
+
+    const defaultCustomFields = [
+      {
+        key: 'yelp_lead_id',
+        value: details.leadId,
+      },
+    ];
 
     const createPayload: any = {
       locationId: locId,
@@ -165,12 +187,9 @@ export class GHLService {
       phone: details.phone,
       source: details.source || 'Yelp',
       tags: ['source: yelp', 'yelp-lead'],
-      customFields: [
-        {
-          key: 'yelp_lead_id',
-          value: details.leadId,
-        },
-      ],
+      customFields: details.customFields && details.customFields.length > 0 
+        ? [...defaultCustomFields, ...details.customFields] 
+        : defaultCustomFields,
     };
 
     try {
@@ -187,4 +206,42 @@ export class GHLService {
       throw err;
     }
   }
+
+  /**
+   * Automatically create an opportunity in the dedicated Yelp pipeline for new leads
+   */
+  public static async createOpportunity(params: {
+    contactId: string;
+    name: string;
+    locationId?: string;
+  }): Promise<string | null> {
+    const locId = params.locationId || config.ghl.locationId;
+    const pipelineConfig = KNOWN_PIPELINES[locId];
+    if (!pipelineConfig) {
+      console.log(`[GHLService] No dedicated Yelp pipeline configured for location ${locId}, skipping opportunity creation.`);
+      return null;
+    }
+
+    try {
+      const oppUrl = `${config.ghl.apiUrl}/opportunities/`;
+      const res = await axios.post(oppUrl, {
+        pipelineId: pipelineConfig.pipelineId,
+        locationId: locId,
+        name: `Yelp - ${params.name}`,
+        pipelineStageId: pipelineConfig.stageId,
+        status: 'open',
+        contactId: params.contactId,
+      }, {
+        headers: this.getHeaders(locId),
+      });
+
+      const oppId = res.data?.opportunity?.id;
+      console.log(`[GHLService] Created opportunity ${oppId} in pipeline ${pipelineConfig.pipelineId} -> ${pipelineConfig.stageId}`);
+      return oppId;
+    } catch (err: any) {
+      console.error('[GHLService] Failed to create opportunity:', err.response?.data || err.message);
+      return null;
+    }
+  }
 }
+

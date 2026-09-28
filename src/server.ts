@@ -104,8 +104,11 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
     if (directMessage) {
-      let name = (body?.name || body?.customer_name || '').trim();
       const subject = body?.subject || '';
+      let name = (body?.name || body?.customer_name || '').trim();
+
+      // Check if this is an initial Yelp Quote Request with questionnaire data
+      const isNewQuote = /requested a quote|How many bedrooms|new .* cleaning request/i.test(directMessage);
 
       // Extract customer name from subject or body if missing or generic Yelp sender
       if (!name || ['Yelp Customer', 'Yelp', 'Yelp Inbox'].includes(name)) {
@@ -113,10 +116,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
           name = subject.match(/response to\s+(.+)$/i)![1].trim();
         } else if (/sent a message/i.test(subject)) {
           name = subject.split(/sent a message/i)[0].trim();
-        } else if (/,\s*([^\r\n,]+?)\s+has replied/i.test(directMessage)) {
-          name = directMessage.match(/,\s*([^\r\n,]+?)\s+has replied/i)![1].trim();
-        } else if (/New Message from\s+([^\r\n]+)/i.test(directMessage)) {
-          name = directMessage.match(/New Message from\s+([^\r\n]+)/i)![1].trim();
+        } else {
+          const nameMatch = directMessage.match(/^([a-zA-Z\s]+?)\s+requested a quote/i);
+          if (nameMatch) name = nameMatch[1].trim();
         }
       }
       // Clean up common Yelp email sender suffixes
@@ -125,25 +127,81 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       name = name.replace(/^RE:\s*/i, '').trim();
       if (!name) name = 'Yelp Customer';
 
+      // Extract Yelp Lead ID from URL
+      const leadIdMatch = directMessage.match(/leads(?:%2F|\/)([a-zA-Z0-9_\-]+)/i) || 
+                          directMessage.match(/return_url=[^&\s]*%2Fleads%2F([a-zA-Z0-9_\-]+)/i);
+      const leadId = body?.lead_id || body?.conversation_id || (leadIdMatch ? leadIdMatch[1] : ('yelp_' + Date.now()));
+
+      // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
       if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean'))) {
         email = undefined;
       }
+      if (!email && leadId) {
+        email = `leadsapi+${leadId}@messaging.yelp.com`;
+      }
+
       const phone = body?.phone || body?.customer_phone || body?.phone_number;
-      const leadId = body?.lead_id || body?.conversation_id || ('yelp_' + Date.now());
 
       let cleanMessage = directMessage.trim();
-      // If message contains full Yelp email body, extract the real message text
-      const yelpWroteMatch = cleanMessage.match(/(?:wrote|sent a message):\s*\n+([\s\S]+?)(?:\n\s*Reply to this email|\n\s*View on Yelp|\n\s*Respond to|\n\s*Sent from my|$)/i);
-      if (yelpWroteMatch && yelpWroteMatch[1]) {
-        cleanMessage = yelpWroteMatch[1].trim();
-      } else if (cleanMessage.includes('Respond Now') || cleanMessage.includes('Or simply respond')) {
-        const marker = cleanMessage.includes('Respond Now') ? 'Respond Now' : 'Or simply respond';
-        const textBefore = cleanMessage.slice(0, cleanMessage.indexOf(marker));
-        const lines = textBefore.split('\n').map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith('|') && !l.startsWith('---') && !l.startsWith('**') && !l.startsWith('##') && !l.startsWith('New Message') && !l.startsWith('Hi ') && !l.startsWith('['));
-        if (lines.length > 0) {
-          cleanMessage = lines[lines.length - 1];
+      const customFields: Array<{ key?: string; id?: string; value: any }> = [];
+
+      if (isNewQuote) {
+        const bedMatch = directMessage.match(/How many bedrooms[^\r\n]*[\r\n]+([^\r\n]+)/i);
+        const bathMatch = directMessage.match(/How many bathrooms[^\r\n]*[\r\n]+([^\r\n]+)/i);
+        const freqMatch = directMessage.match(/How often do you want[^\r\n]*[\r\n]+([^\r\n]+)/i);
+        const serviceMatch = directMessage.match(/requested a quote.*?for\s+(?:a\s+)?([a-zA-Z\s\-]+?)(?:\.|\r|\n)/i) || directMessage.match(/new\s+([a-zA-Z\s\-]+?)\s+request/i);
+        const notesMatch = directMessage.match(/details you\'?d like to share[^\r\n]*[\r\n]+([^\r\n]+)/i);
+        const zipMatch = directMessage.match(/location do you need[^\r\n]*[\r\n]+([^\r\n]+)/i);
+
+        const bedrooms = bedMatch ? bedMatch[1].trim() : '';
+        const bathrooms = bathMatch ? bathMatch[1].trim() : '';
+        const frequency = freqMatch ? freqMatch[1].trim() : '';
+        const service = serviceMatch ? serviceMatch[1].trim() : 'Cleaning';
+        const notes = notesMatch ? notesMatch[1].trim() : '';
+        const zip = zipMatch ? zipMatch[1].trim() : '';
+
+        // Clean, elegant summary for the GHL conversation bubble
+        cleanMessage = [
+          `New Yelp Lead: ${name}`,
+          service ? `• Service: ${service}` : '',
+          bedrooms || bathrooms ? `• Size: ${bedrooms}${bathrooms ? ' / ' + bathrooms : ''}` : '',
+          frequency ? `• Frequency: ${frequency}` : '',
+          notes ? `• Customer Notes: ${notes}` : '',
+          zip ? `• Location: ${zip}` : '',
+        ].filter(Boolean).join('\n');
+
+        // Populate Custom Fields
+        if (service) customFields.push({ key: 'yelp_service_type', value: service });
+        if (bedrooms) customFields.push({ key: 'yelp_bedrooms', value: bedrooms.replace(/[^0-9]/g, '') || bedrooms });
+        if (bathrooms) customFields.push({ key: 'yelp_bathrooms', value: bathrooms.replace(/[^0-9]/g, '') || bathrooms });
+        if (frequency) customFields.push({ key: 'yelp_cleaning_frequency', value: frequency });
+        if (notes) customFields.push({ key: 'yelp_notes__customer_request', value: notes });
+        customFields.push({ key: 'yelp_lead_id', value: leadId });
+      } else {
+        // Ongoing conversation reply: strip boilerplate and action buttons
+        const yelpWroteMatch = cleanMessage.match(/(?:wrote|sent a message):\s*\n+([\s\S]+?)(?:\n\s*Reply to this email|\n\s*View on Yelp|\n\s*Respond to|\n\s*Sent from my|$)/i);
+        if (yelpWroteMatch && yelpWroteMatch[1]) {
+          cleanMessage = yelpWroteMatch[1].trim();
+        } else {
+          const cutoffMarkers = [
+            'Reply for free on Yelp Biz',
+            'Or reply directly to this email',
+            'Respond Now',
+            'Or simply respond',
+            'View on Yelp',
+            'Sent from my',
+            'This email was sent to',
+            'Manage email preferences',
+            '© 2026 | Yelp Inc',
+            '[](https://biz.yelp.com',
+          ];
+          for (const marker of cutoffMarkers) {
+            if (cleanMessage.includes(marker)) {
+              cleanMessage = cleanMessage.slice(0, cleanMessage.indexOf(marker)).trim();
+            }
+          }
         }
       }
 
@@ -154,7 +212,18 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         leadId,
         source: 'Yelp',
         locationId,
+        isNewLead: isNewQuote,
+        customFields,
       });
+
+      // If this is a new quote, create an opportunity in the location's dedicated Yelp pipeline
+      if (isNewQuote) {
+        await GHLService.createOpportunity({
+          contactId,
+          name,
+          locationId,
+        });
+      }
 
       await GHLService.postInboundMessage({
         contactId,
@@ -164,7 +233,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         locationId,
       });
 
-      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage}" for ${name} into GHL contact ${contactId} (loc: ${locationId})`);
+      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage.slice(0, 80)}" for ${name} into GHL contact ${contactId} (loc: ${locationId})`);
       return;
     }
 
