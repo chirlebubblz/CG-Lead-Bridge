@@ -115,3 +115,28 @@ In GoHighLevel under **Automation ➔ Workflows**:
   - **Phone:** `Phone Number` (from Yelp step 1)
   - **Tags:** `yelp-phone-captured`
   - **Yelp Phone Captured:** `Yes`
+
+### Zap 3: Live 2-Way Chat Inbound Bridge (Email ➔ Render ➔ GHL)
+- **Trigger:** `Email by Zapier` ➔ `New Inbound Email` (e.g. `capableclean.[id]@zapiermail.com`)
+- **Action:** `Webhooks by Zapier` ➔ `POST`
+  - **URL:** `https://cg-lead-bridge-capable-clean.onrender.com/webhook/yelp`
+  - **Payload Type:** `json`
+  - **Data Mapping:**
+    | Key | Value (from Step 1) | Notes |
+    | :--- | :--- | :--- |
+    | `name` | `1. From Name` | Used for sender identification |
+    | `subject` | `1. Subject` | Server parses customer name from this |
+    | `message` | `1. Body Plain` | The raw incoming Yelp message body |
+    | `email` | *(Leave empty)* | Prevents owner email hijacking |
+  - **Headers:**
+    - `Content-Type`: `application/json`
+
+---
+
+## 6. Live Render Middleware Service
+- **Service Name:** `cg-lead-bridge-capable-clean`
+- **Live URL:** `https://cg-lead-bridge-capable-clean.onrender.com`
+- **Health Check:** `https://cg-lead-bridge-capable-clean.onrender.com/health` (Verified: `healthy`)
+- **Webhook Endpoint:** `https://cg-lead-bridge-capable-clean.onrender.com/webhook/yelp`
+- **Target Location ID:** `s94e80clit6bCL9VBWgl`
+
