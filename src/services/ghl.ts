@@ -16,6 +16,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   'EKXbBmGEV6hnLQFQRPc7': 'pit-b26f30e8-7d61-4c6f-b925-2ed84ececcc0',
   // Capable Clean
   's94e80clit6bCL9VBWgl': 'pit-5cd3741b-9fde-4039-91da-c869573e74ce',
+  // Ascend Cleaning
+  'IdJoWa68hD3nVj45Fv7f': 'pit-96e543f6-09a3-4d38-8169-62a04c8e8382',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -28,6 +30,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   'EKXbBmGEV6hnLQFQRPc7': {
     pipelineId: '7ft69hadg5z9b7YrVGpJ',
     stageId: '631f6e4a-3f34-433e-8b61-11f9c7f862d0',
+  },
+  // Ascend Cleaning
+  'IdJoWa68hD3nVj45Fv7f': {
+    pipelineId: 'byoJzgmZmdowBaThHgFO',
+    stageId: '531d0cb4-0f56-41c0-87ff-8e5b17574d43', // New Leads
   },
 };
 

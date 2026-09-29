@@ -143,7 +143,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning'))) {
         email = undefined;
       }
       if (!email && leadId) {
@@ -260,6 +260,12 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         YelpService.getLead(lead_id),
         YelpService.getLeadEvents(lead_id),
       ]);
+
+      // Guardrail: Ensure lead belongs to this specific business instance
+      if (config.yelp.businessId && lead.business_id && lead.business_id !== config.yelp.businessId) {
+        console.log(`[Yelp Webhook] Ignoring lead ${lead_id} for external business ${lead.business_id} (configured: ${config.yelp.businessId})`);
+        continue;
+      }
 
       // Find the latest message event
       const latestEvent = events.find((e) => e.event_id === event_id) || events[events.length - 1];
