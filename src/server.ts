@@ -316,32 +316,45 @@ app.post('/webhook/ghl-delivery', async (req: Request, res: Response) => {
 
   try {
     const body = req.body;
-    console.log('[GHL Delivery Webhook] Received payload:', JSON.stringify(body));
+    addLog('[GHL Delivery] Received outbound payload', {
+      keys: Object.keys(body || {}),
+      replyToAltId: body?.replyToAltId,
+      leadId: body?.leadId,
+      altId: body?.altId,
+      conversationAltId: body?.conversationAltId,
+      messageType: body?.type,
+      messageTextPreview: (body?.message || body?.body || '').substring(0, 80),
+    });
 
     const messageText = body?.message || body?.body || '';
     const contactId = body?.contactId;
-    const conversationProviderId = body?.conversationProviderId;
 
     // Detect channel (Yelp vs Thumbtack)
     const channel = (req.query.channel as string) || 'yelp';
 
     if (channel === 'thumbtack') {
       const thumbtackLeadId = body?.replyToAltId || body?.leadId;
+      addLog('[GHL Delivery] Routing to Thumbtack', { thumbtackLeadId });
       await ThumbtackService.sendReply(thumbtackLeadId, messageText);
     } else {
-      // Default: Yelp
-      const yelpLeadId = body?.replyToAltId || body?.leadId || body?.customFields?.yelp_lead_id;
+      // Default: Yelp — try all possible lead ID fields
+      const yelpLeadId = body?.replyToAltId
+        || body?.altId
+        || body?.conversationAltId
+        || body?.leadId
+        || body?.customFields?.yelp_lead_id;
 
       if (!yelpLeadId) {
-        console.warn('[GHL Delivery Webhook] No yelp_lead_id found in outbound payload.');
+        addLog('[GHL Delivery] ⚠️ No yelp_lead_id found — cannot relay to Yelp. Full body keys: ' + Object.keys(body || {}).join(', '));
         return;
       }
 
+      addLog(`[GHL Delivery] Sending reply to Yelp lead ${yelpLeadId}`, { message: messageText.substring(0, 80) });
       await YelpService.sendReply(yelpLeadId, messageText);
-      console.log(`[GHL Delivery Webhook] Successfully posted reply to Yelp lead ${yelpLeadId}`);
+      addLog(`[GHL Delivery] ✅ Successfully relayed reply to Yelp lead ${yelpLeadId}`);
     }
-  } catch (err) {
-    console.error('[GHL Delivery Error]', err);
+  } catch (err: any) {
+    addLog('[GHL Delivery] ❌ Error sending to Yelp', { error: err.response?.data || err.message });
   }
 });
 
