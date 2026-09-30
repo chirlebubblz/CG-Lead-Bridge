@@ -61,33 +61,90 @@ Target Pipeline: **`Pipeline 6 - Yelp Leads`** (`RhbEvMN7bsMd2bekssNc`)
 
 ---
 
-## 4. Workflow Blueprint (Folder: `(Yelp Leads)`)
+## 4. The Master Workflow: Option A (All-in-One Intake & Nurture)
 
-Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
+Folder: **`Automation ➔ Workflows ➔ (Yelp Leads)`**  
+Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 
-### Workflow 1: `(Yelp Leads) Inbound Lead Intake & Auto-Responder`
-- **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
-- **Action 1: Create/Update Opportunity:**
+### Summary:
+Handles the immediate intake, delivers the instant Yelp in-app email quote response, alerts the team with the phone number if captured, and automatically follows up at 24h and 48h if the customer has not replied — moving the opportunity through the pipeline stages automatically.
+
+---
+
+### Step-by-Step Actions:
+
+- **Trigger: Contact Tag Added**
+  - Tag: `source: yelp` (or `yelp-lead`)
+
+- **Action 1: Create/Update Opportunity**
   - Pipeline: `Pipeline 6 - Yelp Leads` (`RhbEvMN7bsMd2bekssNc`)
   - Stage: `New Leads` (`1dac1178-efc1-4f67-b508-b7fe4b0cc14b`)
   - Opportunity Name: `Yelp - {{contact.name}}`
-- **Action 2: Wait (90 Seconds):**
-  - Essential buffer: allows Yelp's companion `Phone Availability` zap/event to arrive and populate the phone number before sending the first response.
-- **Action 3: If/Else Condition (`Channel Routing`):**
-  - **Branch A: Has Phone Number** (`contact.phone is not empty`)
-    - **Action:** Send SMS:
-      > *"Hi {{contact.first_name}}, thanks for reaching out to The Sparkle Squad Co on Yelp! We received your request for a {{contact.yelp_service_type}}. What is your approximate square footage and preferred days for your cleaning?"*
-    - **Action:** Add Tag: `yelp-phone-captured`
-  - **Branch B: Yelp Masked Email Only** (`contact.phone is empty`)
+  - Status: `Open`
+
+- **Action 2: Bed & Bath Guardrail (If / Else)**
+  - **Branch 1 (Both Present):** `contact.yelp_bedrooms is not empty` **AND** `contact.yelp_bathrooms is not empty`
     - **Action:** Send Email:
       - To: `{{contact.email}}` (`leadsapi+...` relay)
+      - From Name: `The Sparkle Squad Co`
+      - From Email: `info@thesparklesquadco.com`
       - Subject: `Your Cleaning Request - The Sparkle Squad Co`
       - Body (Plain Text):
-        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to The Sparkle Squad Co on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote, what is your approximate square footage and ideal time frame? You can also reply directly here or call/text us directly at (786) 600-4088."*
-    - **Action:** Add Tag: `yelp-no-phone`
-- **Action 4: Internal Notification:**
-  - Send SMS to Mark Cook II (`+17866004088`):
-    > *"New Yelp Lead: {{contact.name}} - {{contact.yelp_service_type}} ({{contact.phone}})"*
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to The Sparkle Squad Co on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote and check availability, what is your approximate square footage and preferred days for your cleaning? You can reply directly here to chat with us on Yelp, or reach us directly at (786) 600-4088.\n\nBest regards,\nThe Sparkle Squad Co Team"*
+  - **Branch 2 (Fallback - Either or Both Missing):** *Default Else*
+    - **Action:** Send Email:
+      - To: `{{contact.email}}` (`leadsapi+...` relay)
+      - From Name: `The Sparkle Squad Co`
+      - From Email: `info@thesparklesquadco.com`
+      - Subject: `Your Cleaning Request - The Sparkle Squad Co`
+      - Body (Plain Text):
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to The Sparkle Squad Co on Yelp! We received your request for a {{contact.yelp_service_type}}.\n\nTo give you an accurate quote and check availability, could you share how many bedrooms and bathrooms you have, as well as your approximate square footage? You can reply directly here to chat with us on Yelp, or reach us directly at (786) 600-4088.\n\nBest regards,\nThe Sparkle Squad Co Team"*
+
+- **Action 3: Wait 90 Seconds**
+  - Wait Time: `90 Seconds` (Buffer for Yelp companion Zap to attach phone number)
+
+- **Action 4: Internal Team Alert**
+  - Action: `Internal Notification` (Send SMS)
+  - To: Mark Cook II (`+17866004088`)
+  - Message:
+    > *"🚨 New Yelp Lead: {{contact.name}} requested {{contact.yelp_service_type}}.\nPhone: {{contact.phone}}\nInitial Yelp response sent. View conversation: https://app.gohighlevel.com"*
+
+- **Action 5: Wait 24 Hours (No-Answer Delay)**
+  - Wait Time: `24 Hours`
+
+- **Action 6: Update Opportunity ➔ Stage: `No Answer`**
+  - Pipeline: `Pipeline 6 - Yelp Leads`
+  - Stage: `No Answer` (`a8b77781-c065-471d-a9fe-40f8b008eed5`)
+
+- **Action 7: Send Follow-Up Email #1 (24h Nudge via Yelp Relay)**
+  - To: `{{contact.email}}`
+  - From Name: `The Sparkle Squad Co`
+  - From Email: `info@thesparklesquadco.com`
+  - Subject: `Following up on your cleaning request - The Sparkle Squad Co`
+  - Body:
+    > *"Hi {{contact.first_name}},\n\nI wanted to follow up on your cleaning inquiry on Yelp for {{contact.yelp_service_type}}.\n\nWere you still looking to get a quote or schedule a cleaning for this week? Let us know and we'd be happy to get you taken care of!\n\nBest,\nThe Sparkle Squad Co Team"*
+
+- **Action 8: Wait 48 Hours**
+  - Wait Time: `48 Hours`
+
+- **Action 9: Update Opportunity ➔ Stage: `Follow Up (Automated)`**
+  - Pipeline: `Pipeline 6 - Yelp Leads`
+  - Stage: `Follow Up (Automated)` (`9ec19e68-2640-4639-9ae7-7248d28ae341`)
+
+- **Action 10: Send Final Follow-Up Email #2 (72h Check-in)**
+  - To: `{{contact.email}}`
+  - From Name: `The Sparkle Squad Co`
+  - From Email: `info@thesparklesquadco.com`
+  - Subject: `Checking in - The Sparkle Squad Co`
+  - Body:
+    > *"Hi {{contact.first_name}},\n\nJust checking in one last time regarding your {{contact.yelp_service_type}} request. If you still need service or have any questions about pricing, feel free to reply directly here or call us at (786) 600-4088.\n\nHave a great day!\nThe Sparkle Squad Co Team"*
+
+---
+
+### Workflow Settings (Gear Icon in Builder):
+* **Allow Re-entry:** ❌ **Off**
+* **Stop on Response:** ✅ **ON** *(Essential: As soon as the customer replies at any point in the thread, GHL automatically removes them from the workflow so they never receive automated follow-up nudges!)*
+* **Status:** **Published**
 
 ---
 

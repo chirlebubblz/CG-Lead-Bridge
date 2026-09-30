@@ -57,33 +57,46 @@ Target Pipeline: **`Pipeline 6 - Yelp Leads`** (`vW4C7CoS4dMyY2tN7d5F`)
 
 ---
 
-## 4. Workflow Blueprint (Folder: `(Yelp Leads)`)
+## 4. The Master Workflow: (No Customer SMS Default Standard)
 
-Inside GHL **Automation ➔ Workflows**, create a folder named **`(Yelp Leads)`**.
+Folder: **`Automation ➔ Workflows ➔ (Yelp Leads)`**  
+Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 
-### Workflow: `(Yelp Leads) Inbound Lead Intake & Auto-Responder`
+> **Production Standard:** Zero outbound customer SMS. All customer-facing messages route 100% via Email (`leadsapi+...`), which Yelp automatically posts directly into the consumer's Yelp in-app chat thread. This guarantees 100% delivery without A2P 10DLC carrier compliance issues or unprompted texts. The phone number is retained solely on the contact record for sales reps to call/text manually.
+
+### Step-by-Step Actions:
 - **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
 - **Action 1: Create/Update Opportunity:**
   - Pipeline: `Pipeline 6 - Yelp Leads` (`vW4C7CoS4dMyY2tN7d5F`)
   - Stage: `New Leads` (`21a4a59d-4ab7-417d-9c5f-c413a013d3df`)
   - Opportunity Name: `Yelp - {{contact.name}}`
-- **Action 2: Wait (90 Seconds):**
-  - **Crucial Buffer:** Gives Yelp's companion `Phone Availability` zap 90 seconds to capture the consumer's mobile number before evaluating communication channels.
-- **Action 3: If/Else Condition (`Channel Routing`):**
-  - **Branch A: Has Phone Number** (`contact.phone is not empty`)
-    - **Action:** Send SMS:
-      > *"Hi {{contact.first_name}}, thank you for reaching out to Sunny Side Clean Team on Yelp! We received your request for a {{contact.yelp_service_type}}. What is your approximate square footage and preferred days for your cleaning?"*
-    - **Action:** Add Tag: `yelp-phone-captured`
-  - **Branch B: Masked Email Only** (`contact.phone is empty`)
-    - **Action:** Send Email:
-      - To: `{{contact.email}}` (`leadsapi+...` relay)
+- **Action 2: Bed & Bath Guardrail (If / Else):**
+  - **Branch 1 (Both Present):** `contact.yelp_bedrooms is not empty` **AND** `contact.yelp_bathrooms is not empty`
+    - **Action:** Send Email to `{{contact.email}}` (`leadsapi+...` relay):
       - Subject: `Your Cleaning Request - Sunny Side Clean Team`
-      - Body (Plain Text):
-        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Sunny Side Clean Team on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote, what is your approximate square footage and ideal time frame? You can reply directly here or call/text us directly at (386) 222-2790."*
-    - **Action:** Add Tag: `yelp-no-phone`
+      - Body:
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Sunny Side Clean Team on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote and check availability, what is your approximate square footage and preferred days for your cleaning? You can reply directly here or call/text us directly at (386) 222-2790.\n\nBest regards,\nSunny Side Clean Team"*
+  - **Branch 2 (Fallback - Either or Both Missing):** *Default Else*
+    - **Action:** Send Email to `{{contact.email}}` (`leadsapi+...` relay):
+      - Subject: `Your Cleaning Request - Sunny Side Clean Team`
+      - Body:
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Sunny Side Clean Team on Yelp! We received your request for a {{contact.yelp_service_type}}.\n\nTo give you an accurate quote and check availability, could you share how many bedrooms and bathrooms you have, as well as your approximate square footage? You can reply directly here or call/text us directly at (386) 222-2790.\n\nBest regards,\nSunny Side Clean Team"*
+- **Action 3: Wait (90 Seconds):**
+  - Buffer for companion Zap 2 to attach phone number to the contact record.
 - **Action 4: Internal Team Notification:**
   - Send SMS to Deep Patel (`+13862222790`):
-    > *"New Yelp Lead: {{contact.name}} - {{contact.yelp_service_type}} ({{contact.phone}})"*
+    > *"🚨 New Yelp Lead: {{contact.name}} requested {{contact.yelp_service_type}}.\nPhone: {{contact.phone}}\nInitial Yelp response sent. View conversation: https://app.gohighlevel.com"*
+- **Action 5: Wait 24 Hours** *(Settings: Stop on Response = ON)*
+- **Action 6: Update Opportunity ➔ Stage: `No Answer`** (`0e7cdca1-d201-4755-ae90-94032d1076aa`)
+- **Action 7: Send Follow-Up Email #1 (24h Nudge via Yelp Relay)**
+- **Action 8: Wait 48 Hours**
+- **Action 9: Update Opportunity ➔ Stage: `Follow Up (Automated)`** (`bbcdef27-c747-4297-b59d-f224cdcd1585`)
+- **Action 10: Send Final Follow-Up Email #2 (72h Check-in via Yelp Relay)**
+
+### Workflow Settings (Gear Icon in Builder):
+* **Allow Re-entry:** ❌ **Off**
+* **Stop on Response:** ✅ **ON**
+* **Status:** **Published**
 
 ---
 

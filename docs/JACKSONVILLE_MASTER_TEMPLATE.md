@@ -80,24 +80,25 @@ Create a dedicated pipeline with these exact 8 stages:
 
 ---
 
-### D. Workflow 1 (`Inbound Lead Intake & Auto-Responder`)
+### D. Workflow 1 (`(Yelp Leads) Master Inbound Intake & Auto-Followup`) — Default Standard (No Customer SMS)
 Under **Automation ➔ Workflows ➔ Folder: `(Yelp Leads)`**:
+> **Production Standard:** Zero outbound customer SMS. All customer-facing messages route 100% via Email (`leadsapi+...`), which Yelp automatically posts directly into the consumer's Yelp in-app chat thread. This guarantees 100% delivery without A2P 10DLC carrier compliance issues or unprompted texts. The phone number is retained solely on the contact record for sales reps to call/text manually.
+
 - **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
-- **Step 1:** Create Opportunity in `Yelp Leads Pipeline` ➔ `New Leads`
-- **Step 2:** Wait `90 Seconds` (Buffer for Yelp Phone Availability Zap)
-- **Step 3 (If/Else):** Check `Contact Details ➔ Phone is not empty`:
-  - **Branch A (Has Phone):**
-    - Tag `yelp-phone-captured`
-    - Sub-check: Are Bed & Bath populated?
-      - If Yes: Send SMS with bed/bath specs.
-      - If No (Fallback): Send natural fallback SMS asking for bed/bath & sq footage.
-    - Go To ➔ Internal Alert to Team ➔ Wait 24h ➔ Follow-up SMS #1.
-  - **Branch B (Yelp Relay Email Only):**
-    - Tag `yelp-no-phone`
-    - Sub-check: Are Bed & Bath populated?
-      - If Yes: Send Email with bed/bath specs to `leadsapi+...`.
-      - If No (Fallback): Send natural fallback Email to `leadsapi+...`.
-    - Go To ➔ Internal Alert to Team ➔ Wait 24h ➔ Follow-up Email #1.
+- **Step 1:** Create Opportunity in `Pipeline [N] - Yelp Leads` ➔ Stage: `New Leads`
+- **Step 2 (Bed & Bath Guardrail If/Else):**
+  - **Branch 1 (Both Filled):** `Yelp Bedrooms is not empty` **AND** `Yelp Bathrooms is not empty`
+    - Send Email to `{{contact.email}}` (`leadsapi+...` relay) with bed/bath counts.
+  - **Branch 2 (Fallback - Either or Both Missing):** *Default Else*
+    - Send Email to `{{contact.email}}` (`leadsapi+...` relay) asking naturally for bed/bath & sq footage.
+- **Step 3:** Wait `90 Seconds` (Buffer for companion Zap 2 to capture direct phone number)
+- **Step 4:** Internal Alert to Sales Team / Owner (via SMS or GHL In-App Notification with customer phone number)
+- **Step 5:** Wait `24 Hours` *(Settings: Stop on Response = ON)*
+- **Step 6:** Update Opportunity ➔ Stage: `No Answer`
+- **Step 7:** Send 24h Follow-up Email #1 via Yelp Relay
+- **Step 8:** Wait `48 Hours`
+- **Step 9:** Update Opportunity ➔ Stage: `Follow Up (Automated)`
+- **Step 10:** Send Final 72h Check-in Email #2 via Yelp Relay
 
 ---
 
@@ -144,7 +145,20 @@ In the client's business Gmail receiving Yelp alerts:
 ## 5. Middleware Server Shielding (`src/server.ts`)
 When adding new business email domains, append them to the blacklist guardrail in `src/server.ts` so owner/forwarder emails are never ingested as leads:
 ```typescript
-if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('capableclean'))) {
+if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('capableclean') || email.includes('ascendcleaning'))) {
   email = undefined;
 }
 ```
+
+---
+
+## 6. Deployed Render Services
+
+| Client | Render URL | GHL Location ID |
+| :--- | :--- | :--- |
+| **Clean Genie / Jacksonville** | `https://cg-lead-bridge.onrender.com` | `EKXbBmGEV6hnLQFQRPc7` |
+| **Capable Clean** | `https://cg-lead-bridge.onrender.com` | `s94e80clit6bCL9VBWgl` |
+| **The Sparkle Squad Co (Miami)** | `https://cg-lead-bridge.onrender.com` | `ThUMNqsKmDfYKMF0jsBb` |
+| **Sunny Side Clean Team** | `https://cg-lead-bridge.onrender.com` | `WOwi6fpdaZavuqHU8Rux` |
+| **Ascend Cleaning** | `https://cg-lead-bridge-ascend.onrender.com` | `IdJoWa68hD3nVj45Fv7f` |
+| **Puget Sound Cleaners** | `https://cg-lead-bridge.onrender.com` | `MucxtGIfmvLViGQWD0CG` |

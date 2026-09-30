@@ -18,6 +18,10 @@ const KNOWN_TOKENS: Record<string, string> = {
   's94e80clit6bCL9VBWgl': 'pit-5cd3741b-9fde-4039-91da-c869573e74ce',
   // Ascend Cleaning
   'IdJoWa68hD3nVj45Fv7f': 'pit-96e543f6-09a3-4d38-8169-62a04c8e8382',
+  // The Sparkle Squad Co (Miami)
+  'ThUMNqsKmDfYKMF0jsBb': 'pit-e378012e-1c77-4b34-acb0-ddd61e22880e',
+  // Sunny Side Clean Team
+  'WOwi6fpdaZavuqHU8Rux': 'pit-87f6619e-b38c-47e8-b3e4-bec4e87ac9cb',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -35,6 +39,16 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   'IdJoWa68hD3nVj45Fv7f': {
     pipelineId: 'byoJzgmZmdowBaThHgFO',
     stageId: '531d0cb4-0f56-41c0-87ff-8e5b17574d43', // New Leads
+  },
+  // The Sparkle Squad Co (Miami)
+  'ThUMNqsKmDfYKMF0jsBb': {
+    pipelineId: 'RhbEvMN7bsMd2bekssNc',
+    stageId: '1dac1178-efc1-4f67-b508-b7fe4b0cc14b', // New Leads
+  },
+  // Sunny Side Clean Team
+  'WOwi6fpdaZavuqHU8Rux': {
+    pipelineId: 'vW4C7CoS4dMyY2tN7d5F',
+    stageId: '21a4a59d-4ab7-417d-9c5f-c413a013d3df', // New Leads
   },
 };
 

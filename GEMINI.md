@@ -9,7 +9,7 @@ Every new client, brand rollout, or location onboarding must strictly adhere to 
 1. **GHL Custom Fields:** Always nested inside folder `Yelp Lead Details` (or `Yelp Leads & Details`) with the 7 standardized fields.
 2. **GHL Tags:** Standard 6 lifecycle tags (`source: yelp`, `yelp-lead`, `yelp-phone-captured`, `yelp-no-phone`, `yelp-quote-sent`, `yelp-booked`).
 3. **GHL Dedicated Pipeline:** `Pipeline [N] - Yelp Leads Pipeline` with the exact 8 standardized stages.
-4. **GHL Workflow 1:** Folder `(Yelp Leads)`, Name `(Yelp Leads) Inbound Lead Intake & Auto-Responder` with the 90-second wait buffer, channel routing (SMS vs `leadsapi+...` relay), and Bed/Bath fallback guardrail.
+4. **GHL Workflow 1:** Folder `(Yelp Leads)`, Name `(Yelp Leads) Master Inbound Intake & Auto-Followup` — **Default standard is Pure Email Relay (Zero Outbound Customer SMS)** with Bed/Bath fallback guardrail, 90-second phone buffer, internal team alert, and 24h/48h automated no-answer follow-up with Stop on Response = ON.
 5. **The 3 Zapier Zaps + Render Server Bridge:**
    - **Zap 1:** Yelp Leads (`New Lead`) ➔ LeadConnector (`Create/Update Contact`)
    - **Zap 2:** Yelp Leads (`Phone Availability`) ➔ LeadConnector (`Create/Update Contact` with Phone)

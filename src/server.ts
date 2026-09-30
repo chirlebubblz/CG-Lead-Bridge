@@ -143,7 +143,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners'))) {
         email = undefined;
       }
       if (!email && leadId) {
