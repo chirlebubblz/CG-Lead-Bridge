@@ -136,7 +136,41 @@ Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 
 ---
 
-## 5. Zapier 3-Zap Architecture
+## 5. Companion Workflows (Recommended)
+
+### Workflow 2: `(Yelp Leads) Quote Sent Follow-Up`
+* **Trigger:** Opportunity Stage Changed ➔ `Quoted` (`c4669d2c-4706-4edf-b3cb-088265a9c9cc`)
+* **Settings:** Allow Re-entry = OFF, **Stop on Response = ON**
+* **Step 1:** Add Tag `yelp-quote-sent`
+* **Step 2:** Remove from Workflow `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+* **Step 3:** Wait `48 Hours`
+* **Step 4:** Send Email to `{{contact.email}}` (Quote Nudge #1):
+  > *"Hi {{contact.first_name}}, I wanted to follow up and see if you had any questions regarding the quote we sent over for your {{contact.yelp_service_type}}. We have availability coming up this week in Seattle—let us know if you'd like to get scheduled! — Puget Sound Cleaners"*
+* **Step 5:** Wait `48 Hours`
+* **Step 6:** Move Opportunity ➔ `Follow Up (Automated)` (`4f868046-9a6a-4805-845e-721843184473`)
+* **Step 7:** Send Email to `{{contact.email}}` (Final Quote Check-in #2)
+* **Step 8:** Internal alert to sales rep if still no response after 4 days.
+
+---
+
+### Workflow 3: `(Yelp Leads) Closed Won & Disarm`
+* **Trigger:** Opportunity Stage Changed ➔ `Closed Won` (`5d2b4460-54d1-4663-8665-d6837d4e8ed7`)
+* **Step 1:** Add Tag `yelp-booked`
+* **Step 2:** Remove from `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+* **Step 3:** Remove from `(Yelp Leads) Quote Sent Follow-Up`
+* **Step 4:** Send Booking Confirmation Email to `{{contact.email}}`:
+  > *"Hi {{contact.first_name}}, thank you for booking with Puget Sound Cleaners! We are excited to clean your home. Our team will reach out with your exact arrival window. Reply here anytime with questions!"*
+
+---
+
+### Workflow 4: `(Yelp Leads) Not Qualified / Archive`
+* **Trigger:** Opportunity Stage Changed ➔ `Not Qualified` (`92a4a0ba-cf0e-4391-a2ab-22ec33ed66a8`)
+* **Step 1:** Remove from all Yelp active workflows
+* **Step 2 (Optional):** Polite decline email via Yelp relay.
+
+---
+
+## 6. Zapier 3-Zap Architecture
 
 ### Zap 1: Ingestion
 - **Trigger:** Yelp Leads ➔ `New Lead`
@@ -166,3 +200,4 @@ Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
     - `subject`: `1. Subject`
     - `message`: `1. Body Plain`
     - `email`: *(Leave blank)*
+
