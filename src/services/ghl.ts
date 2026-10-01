@@ -165,21 +165,27 @@ export class GHLService {
           return searchRes.data.contact.id;
         }
       }
-      // 2. Fallback: Search by Name only if this is NOT an explicit new quote request
-      if (!details.isNewLead && details.name && details.name.trim() !== '' && details.name !== 'Yelp Customer') {
+      // 2. Search by Yelp Lead ID or Name across existing contacts in the location
+      if (details.leadId || (details.name && details.name !== 'Yelp Customer')) {
+        const queryTerm = (details.name && details.name !== 'Yelp Customer') ? details.name.trim() : details.leadId;
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: {
             locationId: locId,
-            query: details.name.trim(),
+            query: queryTerm,
           },
           headers,
         });
-        const match = queryRes.data?.contacts?.find((c: any) => 
-          (c.contactName && c.contactName.toLowerCase().includes(details.name!.toLowerCase())) ||
-          (c.firstName && c.firstName.toLowerCase() === details.name!.toLowerCase().split(' ')[0])
-        );
+        const match = queryRes.data?.contacts?.find((c: any) => {
+          const hasMatchingLeadId = details.leadId && c.customFields?.some((f: any) => f.value === details.leadId);
+          const hasMatchingName = details.name && (
+            (c.contactName && c.contactName.toLowerCase() === details.name.toLowerCase()) ||
+            (c.firstName && c.firstName.toLowerCase() === details.name.split(' ')[0].toLowerCase())
+          );
+          return hasMatchingLeadId || hasMatchingName;
+        });
+
         if (match?.id) {
-          console.log(`[GHLService] Matched contact by name "${details.name}" in location ${locId} -> ${match.id}`);
+          console.log(`[GHLService] Matched contact by leadId/name "${details.leadId || details.name}" in location ${locId} -> ${match.id}`);
           return match.id;
         }
       }
