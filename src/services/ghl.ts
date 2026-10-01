@@ -22,6 +22,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   'ThUMNqsKmDfYKMF0jsBb': 'pit-e378012e-1c77-4b34-acb0-ddd61e22880e',
   // Sunny Side Clean Team
   'WOwi6fpdaZavuqHU8Rux': 'pit-87f6619e-b38c-47e8-b3e4-bec4e87ac9cb',
+  // Puget Sound Cleaners
+  'MucxtGIfmvLViGQWD0CG': 'pit-3e2b6d46-5ff3-472c-bd48-16ee70d76fbc',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -49,6 +51,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   'WOwi6fpdaZavuqHU8Rux': {
     pipelineId: 'vW4C7CoS4dMyY2tN7d5F',
     stageId: '21a4a59d-4ab7-417d-9c5f-c413a013d3df', // New Leads
+  },
+  // Puget Sound Cleaners
+  'MucxtGIfmvLViGQWD0CG': {
+    pipelineId: '86PQ8Pz1Fo7R8oo2MTQQ',
+    stageId: '8d0c1f69-1903-40db-8e92-d337792ef202', // New Leads
   },
 };
 
