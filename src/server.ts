@@ -107,11 +107,11 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       const subject = body?.subject || '';
       let name = (body?.name || body?.customer_name || '').trim();
 
-      // Ignore Yelp administrative/system emails (e.g. email verifications, manager invitations)
-      const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice/i.test(subject) ||
-                            /confirm your email address on yelp|has invited you to manage/i.test(directMessage);
+      // Ignore Yelp & Gmail administrative/system emails (e.g. email verifications, manager invitations, forwarding confirmations)
+      const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice|forwarding confirmation|confirm the request/i.test(subject) ||
+                            /confirm your email address on yelp|has invited you to manage|automatically forward mail to your email/i.test(directMessage);
       if (isSystemEmail) {
-        addLog('[Yelp Webhook] Ignored Yelp system/administrative notification', { subject, name });
+        addLog('[Yelp Webhook] Ignored administrative/system notification', { subject, name });
         return res.status(200).send('IGNORED_SYSTEM_NOTIFICATION');
       }
 
