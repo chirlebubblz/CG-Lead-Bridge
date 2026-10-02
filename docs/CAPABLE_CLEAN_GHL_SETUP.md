@@ -56,39 +56,116 @@ Target Pipeline: **`Pipeline 5 - Yelp Leads Pipeline`** (ID: `GM4XXE47iTC20dCxbl
 
 ---
 
-## 4. Workflow Blueprint (Folder: `(Yelp Leads)`)
+## 4. The Master Workflow: Up-To-Date Standard (Zero Customer SMS)
 
-In GoHighLevel under **Automation ➔ Workflows**:
-1. Create a workflow folder named **`(Yelp Leads)`**.
-2. Create Workflow: **`(Yelp Leads) Inbound Lead Intake & Auto-Responder`**.
+Folder: **`Automation ➔ Workflows ➔ (Yelp Leads)`**  
+Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 
-### Workflow Configuration:
-- **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
-- **Action 1: Create/Update Opportunity:**
-  - Pipeline: `Pipeline 5 - Yelp Leads Pipeline`
-  - Stage: `New Leads`
+> **Official Standard Reason:**
+> Inbound Yelp consumers expect communication inside the Yelp app chat thread. Directly sending unsolicited customer SMS outside Yelp violates A2P 10DLC compliance and triggers customer pushback.
+> Instead, all automated customer communication is sent as **Email to `{{contact.email}}`** (`leadsapi+...`), which Yelp automatically converts into an **in-app chat message directly in the customer's Yelp inbox**.
+> The customer's mobile phone number is safely captured via Zap 2 and saved to their contact card for internal sales team alerts and manual follow-up.
+
+### Step-by-Step Workflow Blueprint:
+
+- **Trigger: Contact Tag Added**
+  - Tag: `source: yelp` (or `yelp-lead`)
+
+- **Action 1: Create/Update Opportunity**
+  - Pipeline: `Pipeline 5 - Yelp Leads Pipeline` (`GM4XXE47iTC20dCxblHp`)
+  - Stage: `New Leads` (`e24f6709-f5ad-4952-9ce0-d1f68ffa10f3`)
   - Opportunity Name: `Yelp - {{contact.name}}`
-- **Action 2: Wait (90 Seconds):**
-  - Essential buffer: allows Yelp's companion `Phone Availability` Zap/event to arrive and populate the customer's phone number before sending the first response.
-- **Action 3: If/Else Condition (`Channel Routing`):**
-  - **Branch A: Has Phone Number** (`contact.phone is not empty`)
-    - **Action:** Send SMS:
-      > *"Hi {{contact.first_name}}, thanks for reaching out to Capable Clean on Yelp! We received your request for a {{contact.yelp_service_type}}. What is your approximate square footage and preferred days for your cleaning?"*
-    - **Action:** Add Tag: `yelp-phone-captured`
-  - **Branch B: Yelp Masked Email Only** (`contact.phone is empty`)
+  - Status: `Open`
+
+- **Action 2: Bed & Bath Guardrail (If / Else)**
+  - **Branch 1 (Both Present):** `contact.yelp_bedrooms is not empty` **AND** `contact.yelp_bathrooms is not empty`
     - **Action:** Send Email:
-      - **To:** `{{contact.email}}` (`leadsapi+...` relay)
-      - **Subject:** `Your Cleaning Request - Capable Clean`
-      - **Body (Plain Text):**
-        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Capable Clean on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote, what is your approximate square footage and ideal time frame? You can also reply directly here on Yelp or call/text us directly at (714) 455-3578."*
-    - **Action:** Add Tag: `yelp-no-phone`
-- **Action 4: Internal Notification:**
-  - Send Notification / SMS to Capable Clean team (`+17144553578`):
-    > *"New Yelp Lead: {{contact.name}} - {{contact.yelp_service_type}} ({{contact.phone}})"*
+      - To: `{{contact.email}}` (`leadsapi+...` relay)
+      - From Name: `Capable Clean`
+      - Subject: `Your Cleaning Request - Capable Clean`
+      - Body (Plain Text):
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Capable Clean on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote and check availability, what is your approximate square footage and preferred days for your cleaning? You can reply directly here to chat with us on Yelp, or call/text us directly at (714) 455-3578.\n\nBest regards,\nThe Capable Clean Team\n(714) 455-3578"*
+  - **Branch 2 (Fallback - Either or Both Missing):** *Default Else*
+    - **Action:** Send Email:
+      - To: `{{contact.email}}` (`leadsapi+...` relay)
+      - From Name: `Capable Clean`
+      - Subject: `Your Cleaning Request - Capable Clean`
+      - Body (Plain Text):
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Capable Clean on Yelp! We received your request for a {{contact.yelp_service_type}}.\n\nTo give you an accurate quote and check availability, could you share how many bedrooms and bathrooms you have, as well as your approximate square footage? You can reply directly here to chat with us on Yelp, or call/text us directly at (714) 455-3578.\n\nBest regards,\nThe Capable Clean Team\n(714) 455-3578"*
+
+- **Action 3: Wait 90 Seconds**
+  - Wait Time: `90 Seconds` (Buffer for companion Zap 2 to attach customer phone number)
+
+- **Action 4: Internal Team Alert**
+  - Action: `Internal Notification` (Email or In-App Notification to owner/sales team)
+  - Message:
+    > *"🚨 New Yelp Lead: {{contact.name}} requested {{contact.yelp_service_type}}.\nPhone: {{contact.phone}}\nInitial response sent via Yelp Relay. View conversation in GHL: https://app.gohighlevel.com"*
+
+- **Action 5: Wait 24 Hours (No-Answer Delay)**
+  - Wait Time: `24 Hours`
+  - Settings: **Stop on Response = ON**
+
+- **Action 6: Update Opportunity ➔ Stage: `No Answer`**
+  - Pipeline: `Pipeline 5 - Yelp Leads Pipeline`
+  - Stage: `No Answer` (`c5b9ed3f-6c36-4856-aeac-b82bc883763a`)
+
+- **Action 7: Send Follow-Up Email #1 (24h Nudge via Yelp Relay)**
+  - To: `{{contact.email}}`
+  - From Name: `Capable Clean`
+  - Subject: `Following up on your cleaning request - Capable Clean`
+  - Body:
+    > *"Hi {{contact.first_name}},\n\nI wanted to follow up on your cleaning inquiry on Yelp for {{contact.yelp_service_type}}.\n\nWere you still looking to get a quote or schedule a cleaning for this week? Let us know and we'd be happy to get you taken care of!\n\nBest regards,\nThe Capable Clean Team\n(714) 455-3578"*
+
+- **Action 8: Wait 48 Hours**
+  - Wait Time: `48 Hours`
+
+- **Action 9: Update Opportunity ➔ Stage: `Follow Up (Automated)`**
+  - Pipeline: `Pipeline 5 - Yelp Leads Pipeline`
+  - Stage: `Follow Up (Automated)` (`a4caf540-6396-482c-a4b5-3900588a6191`)
+
+- **Action 10: Send Final Follow-Up Email #2 (72h Check-in)**
+  - To: `{{contact.email}}`
+  - From Name: `Capable Clean`
+  - Subject: `Checking in - Capable Clean`
+  - Body:
+    > *"Hi {{contact.first_name}},\n\nJust checking in one last time regarding your {{contact.yelp_service_type}} request. If you still need cleaning service or have any questions about pricing, feel free to reply directly here or reach us at (714) 455-3578.\n\nHave a great week!\nThe Capable Clean Team"*
 
 ---
 
-## 5. Zapier Mapping Guide (For Capable Clean)
+### Critical Workflow Settings (Gear Icon in Builder):
+* **Allow Re-entry:** ❌ **Off**
+* **Stop on Response:** ✅ **ON** *(Crucial: As soon as the customer replies at any point, GHL automatically halts the workflow so they never receive follow-up automated nudges!)*
+* **Status:** **Published**
+
+---
+
+## 5. Companion Workflows (Recommended Standard Suite)
+
+### Workflow 2: `(Yelp Leads) Quote Sent Follow-Up`
+* **Trigger:** Opportunity Stage Changed ➔ `Quoted` (`45d67cf2-27f2-457a-8e82-efc324e87d24`)
+* **Settings:** Allow Re-entry = OFF, **Stop on Response = ON**
+* **Step 1:** Add Tag `yelp-quote-sent`
+* **Step 2:** Remove from Workflow `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+* **Step 3:** Wait `48 Hours`
+* **Step 4:** Send Email to `{{contact.email}}` (Quote Nudge #1):
+  > *"Hi {{contact.first_name}}, I wanted to follow up and see if you had any questions regarding the quote we sent over for your {{contact.yelp_service_type}}. We have availability coming up this week—let us know if you'd like to get scheduled! — The Capable Clean Team"*
+* **Step 5:** Wait `48 Hours`
+* **Step 6:** Move Opportunity ➔ `Follow Up (Automated)` (`a4caf540-6396-482c-a4b5-3900588a6191`)
+* **Step 7:** Send Final Quote Check-in Email #2
+
+### Workflow 3: `(Yelp Leads) Closed Won & Booking Tag`
+* **Trigger:** Opportunity Stage Changed ➔ `Closed Won` (`3b03db9a-6a2d-47a2-a821-73850b6bbd4c`)
+* **Step 1:** Add Tag `yelp-booked`
+* **Step 2:** Remove from Workflows 1 & 2 (`(Yelp Leads) Master Inbound Intake & Auto-Followup` and `(Yelp Leads) Quote Sent Follow-Up`)
+
+### Workflow 4: `(Yelp Leads) Customer Replied (Exit Followup)`
+* **Trigger:** Customer Replied (Channel: `Live_Chat`, `Custom`, or `Email`)
+* **Filter:** Contact Tag contains `yelp-lead`
+* **Action:** Remove from Workflow `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+
+---
+
+## 6. Zapier Mapping Guide (For Capable Clean)
 
 ### Zap 1: Yelp Leads ➔ GoHighLevel
 - **Trigger:** Yelp Leads ➔ `New Lead`
