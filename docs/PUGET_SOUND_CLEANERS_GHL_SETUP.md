@@ -190,7 +190,8 @@ Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
   - Yelp Phone Captured: `Yes`
 
 ### Zap 3: Live 2-Way Chat Ingest (Render Bridge)
-- **Trigger:** Email by Zapier ➔ `New Inbound Email` (Forwarded from business Gmail)
+- **Trigger:** Email by Zapier ➔ `New Inbound Email` (`pugetsoundcleanersyelp.d82ej2@zapiermail.com`)
+  - Auto-forward from `jerafisabalo@gmail.com` (Filter: `from: yelp.com`)
 - **Action:** Webhooks by Zapier ➔ `POST`
   - URL: `https://cg-lead-bridge.onrender.com/webhook/yelp`
   - Payload Type: `json`

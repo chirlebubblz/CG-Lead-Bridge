@@ -99,13 +99,39 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     const body = req.body;
     addLog('[Yelp Webhook] Received webhook POST', body);
 
-    const locationId = body?.location_id || body?.locationId || body?.location || config.ghl.locationId;
+    let locationId = body?.location_id || body?.locationId || body?.location || config.ghl.locationId;
 
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
     if (directMessage) {
       const subject = body?.subject || '';
       let name = (body?.name || body?.customer_name || '').trim();
+
+      // Brand Guardrail: Auto-detect brand from subject/body to prevent cross-brand contamination
+      const BRAND_LOCATION_MAP: Array<{ pattern: RegExp; locationId: string; name: string }> = [
+        { pattern: /puget\s*sound\s*cleaners/i, locationId: 'MucxtGIfmvLViGQWD0CG', name: 'Puget Sound Cleaners' },
+        { pattern: /mum'?s\s*cleaning/i, locationId: 'YVtPYdLotWLwuy5AA8Vv', name: "Mum's Cleaning Services Chicago" },
+        { pattern: /jacksonville\s*cleaning/i, locationId: 'EKXbBmGEV6hnLQFQRPc7', name: 'Jacksonville Cleaning Co' },
+        { pattern: /capable\s*clean/i, locationId: 's94e80clit6bCL9VBWgl', name: 'Capable Clean' },
+        { pattern: /ascend\s*cleaning/i, locationId: 'IdJoWa68hD3nVj45Fv7f', name: 'Ascend Cleaning' },
+        { pattern: /sparkle\s*squad/i, locationId: 'ThUMNqsKmDfYKMF0jsBb', name: 'The Sparkle Squad Co' },
+        { pattern: /sunny\s*side\s*clean/i, locationId: 'WOwi6fpdaZavuqHU8Rux', name: 'Sunny Side Clean Team' },
+      ];
+
+      const combinedText = `${subject} ${directMessage}`;
+      for (const brand of BRAND_LOCATION_MAP) {
+        if (brand.pattern.test(combinedText)) {
+          if (locationId !== brand.locationId) {
+            addLog(`[Brand Guardrail] Auto-corrected locationId from ${locationId} to ${brand.locationId} based on brand match "${brand.name}"`, {
+              subject,
+              originalLocationId: locationId,
+              correctedLocationId: brand.locationId,
+            });
+            locationId = brand.locationId;
+          }
+          break;
+        }
+      }
 
       // Ignore Yelp & Gmail administrative/system emails (e.g. email verifications, manager invitations, forwarding confirmations, consumer receipts)
       const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice|forwarding confirmation|confirm the request|your request was sent|good news! your request/i.test(subject) ||
