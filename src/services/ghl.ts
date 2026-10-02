@@ -26,6 +26,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   'MucxtGIfmvLViGQWD0CG': 'pit-3e2b6d46-5ff3-472c-bd48-16ee70d76fbc',
   // Mum's Cleaning Services Chicago
   'YVtPYdLotWLwuy5AA8Vv': 'pit-f62d319a-797d-437d-bc0c-90a55d4a3dcf',
+  // Ya'll Maid Austin
+  '19jBWYeRsrzDq6Oe1nth': 'pit-57efb428-1952-48f1-b70b-47f681941579',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -63,6 +65,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   'YVtPYdLotWLwuy5AA8Vv': {
     pipelineId: 'dPOqOjXHi51iQpKKbsJP',
     stageId: '3a8a1718-05bc-40e2-8c0d-e03a7c645ad7', // New Leads
+  },
+  // Ya'll Maid Austin
+  '19jBWYeRsrzDq6Oe1nth': {
+    pipelineId: 'xxJiHoWuxh6cQUEh2aSW',
+    stageId: '39091e9f-d5a9-4d11-9929-b9ef12138c1a', // New Lead
   },
 };
 

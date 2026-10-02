@@ -162,3 +162,4 @@ if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo')
 | **Sunny Side Clean Team** | `https://cg-lead-bridge.onrender.com` | `WOwi6fpdaZavuqHU8Rux` |
 | **Ascend Cleaning** | `https://cg-lead-bridge-ascend.onrender.com` | `IdJoWa68hD3nVj45Fv7f` |
 | **Puget Sound Cleaners** | `https://cg-lead-bridge.onrender.com` | `MucxtGIfmvLViGQWD0CG` |
+| **Ya'll Maid Austin** | `https://cg-lead-bridge-austin.onrender.com` | `19jBWYeRsrzDq6Oe1nth` |
