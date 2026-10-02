@@ -24,6 +24,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   'WOwi6fpdaZavuqHU8Rux': 'pit-87f6619e-b38c-47e8-b3e4-bec4e87ac9cb',
   // Puget Sound Cleaners
   'MucxtGIfmvLViGQWD0CG': 'pit-3e2b6d46-5ff3-472c-bd48-16ee70d76fbc',
+  // Mum's Cleaning Services Chicago
+  'YVtPYdLotWLwuy5AA8Vv': 'pit-f62d319a-797d-437d-bc0c-90a55d4a3dcf',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
