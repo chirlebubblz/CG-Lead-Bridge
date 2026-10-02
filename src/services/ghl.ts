@@ -59,6 +59,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
     pipelineId: '86PQ8Pz1Fo7R8oo2MTQQ',
     stageId: '8d0c1f69-1903-40db-8e92-d337792ef202', // New Leads
   },
+  // Mum's Cleaning Services Chicago
+  'YVtPYdLotWLwuy5AA8Vv': {
+    pipelineId: 'dPOqOjXHi51iQpKKbsJP',
+    stageId: '3a8a1718-05bc-40e2-8c0d-e03a7c645ad7', // New Leads
+  },
 };
 
 export class GHLService {
