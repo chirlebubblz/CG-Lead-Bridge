@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Yelp Leads Standard Operating Procedure (SOP) & User Guide</title>
+  <style>
+    @page { 
+      size: letter; 
+      margin: 10mm 12mm 10mm 12mm; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.5;
+      font-size: 11.5px;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%);
+      color: #fff;
+      padding: 18px 22px 16px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .header-pill {
+      display: inline-block;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #bfdbfe;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-bottom: 6px;
+    }
+    .header h1 { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+    .header p  { font-size: 11.5px; color: #cbd5e1; margin-top: 4px; max-width: 650px; }
+    .header-meta {
+      display: flex; gap: 18px; margin-top: 10px;
+      padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15);
+      font-size: 10.5px; color: #94a3b8;
+    }
+    .header-meta strong { color: #f1f5f9; }
+
+    /* ─── KPI ROW ─── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+    .kpi {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-left: 3.5px solid #2563eb; border-radius: 6px; padding: 9px 11px;
+    }
+    .kpi-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 2px; }
+    .kpi-value { font-size: 13.5px; font-weight: 800; color: #0f172a; }
+    .kpi-sub   { font-size: 9.5px; color: #475569; margin-top: 2px; }
+
+    /* ─── SECTIONS ─── */
+    .section { margin-bottom: 16px; }
+    .section-title {
+      font-size: 13.5px; font-weight: 700; color: #0f172a;
+      border-bottom: 2px solid #e2e8f0; padding-bottom: 4px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
+    }
+    .snum {
+      background: #2563eb; color: #fff; width: 19px; height: 19px;
+      border-radius: 50%; font-size: 10px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    /* ─── FLOW BOX ─── */
+    .flow-box {
+      background: #f8fafc; border: 1px solid #cbd5e1;
+      border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;
+    }
+    .flow-row { display: flex; align-items: center; justify-content: space-between; }
+    .flow-step {
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 6px;
+      padding: 8px 10px; width: 18%; text-align: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .flow-step .icon { font-size: 16px; }
+    .flow-step .fl   { font-size: 10.5px; font-weight: 700; color: #0f172a; margin-top: 2px; }
+    .flow-step .fd   { font-size: 9px; color: #64748b; margin-top: 1px; }
+    .arrow { font-size: 14px; color: #94a3b8; font-weight: 700; }
+
+    /* ─── GOLDEN RULES BOXES ─── */
+    .rules-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .rule-card {
+      border-radius: 8px; padding: 11px 12px; font-size: 10.5px;
+      border: 1px solid;
+    }
+    .rule-gold   { background: #eff6ff; border-color: #93c5fd; }
+    .rule-silver { background: #fefce8; border-color: #fde047; }
+    .rule-bronze { background: #faf5ff; border-color: #d8b4fe; }
+    .rule-title { font-weight: 800; font-size: 11px; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+    .rule-gold .rule-title   { color: #1d4ed8; }
+    .rule-silver .rule-title { color: #854d0e; }
+    .rule-bronze .rule-title { color: #6b21a8; }
+    .rule-body { color: #334155; line-height: 1.45; }
+
+    /* ─── TABLES ─── */
+    table { width: 100%; border-collapse: collapse; font-size: 10.5px; margin: 6px 0 12px; }
+    th { background: #f8fafc; color: #334155; font-weight: 600; text-align: left;
+      padding: 6px 8px; border-bottom: 2px solid #cbd5e1; border-top: 1px solid #e2e8f0; }
+    td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+    tr:nth-child(even) td { background: #fcfdfe; }
+
+    /* ─── BADGES ─── */
+    .badge { display: inline-block; padding: 1.5px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 600; }
+    .bg  { background: #dcfce7; color: #166534; }
+    .bb  { background: #dbeafe; color: #1e40af; }
+    .bp  { background: #f3e8ff; color: #6b21a8; }
+    .ba  { background: #fef3c7; color: #92400e; }
+    .br  { background: #fee2e2; color: #991b1b; }
+    .bgr { background: #f1f5f9; color: #475569; }
+
+    /* ─── SCRIPT BOXES ─── */
+    .script-box {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3.5px solid #0ea5e9;
+      border-radius: 6px; padding: 8px 10px; margin: 5px 0 10px; font-size: 10.5px; color: #0f172a;
+      font-style: italic;
+    }
+
+    /* ─── PAGE BREAKS ─── */
+    .page-break { page-break-before: always; }
+    .avoid-break { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+
+  <!-- ─── HEADER ─── -->
+  <div class="header">
+    <div class="header-pill">Operational Standard Operating Procedure (SOP)</div>
+    <h1>Yelp Leads Management Guide</h1>
+    <p>Daily workflow, conversation handling, quote delivery, and pipeline tracking inside GoHighLevel for Sales Reps, Dispatchers, and Virtual Assistants.</p>
+    <div class="header-meta">
+      <div>Standard: <strong>Jacksonville Golden Master</strong></div>
+      <div>Delivery Channel: <strong>Pure Email Relay (Zero SMS)</strong></div>
+      <div>First Response Target: <strong>&lt; 90 Seconds</strong></div>
+      <div>Updated: <strong>October 2026</strong></div>
+    </div>
+  </div>
+
+  <!-- ─── KPI METRICS ─── -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Speed to Lead</div>
+      <div class="kpi-value">&lt; 90s Response</div>
+      <div class="kpi-sub">Maintains "Replies in minutes" badge</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Delivery Channel</div>
+      <div class="kpi-value">100% In-App Chat</div>
+      <div class="kpi-sub">Renders as native Yelp chat bubbles</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Compliance</div>
+      <div class="kpi-value">Zero SMS Blasts</div>
+      <div class="kpi-sub">100% safe from carrier 10DLC flags</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Pipeline Architecture</div>
+      <div class="kpi-value">8 Clean Stages</div>
+      <div class="kpi-sub">Automated & manual status tracking</div>
+    </div>
+  </div>
+
+  <!-- ─── 1. CORE SYSTEM ARCHITECTURE ─── -->
+  <div class="section avoid-break">
+    <div class="section-title"><span class="snum">1</span> How the Yelp ↔ GoHighLevel System Works</div>
+    <p style="margin-bottom: 10px;">When a homeowner asks for a quote or messages on Yelp, the entire lead profile is instantly synced into your GoHighLevel CRM. Messages sent by reps from GHL are converted into live chat bubbles in the customer's Yelp app.</p>
+    
+    <div class="flow-box">
+      <div class="flow-row">
+        <div class="flow-step">
+          <div class="icon">📱</div>
+          <div class="fl">Customer on Yelp</div>
+          <div class="fd">Requests quote or asks questions</div>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="flow-step">
+          <div class="icon">⚡</div>
+          <div class="fl">Instant GHL Sync</div>
+          <div class="fd">Contact & Opportunity created</div>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="flow-step">
+          <div class="icon">🤖</div>
+          <div class="fl">Auto-Intake (90s)</div>
+          <div class="fd">First response sent to Yelp chat</div>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="flow-step">
+          <div class="icon">💬</div>
+          <div class="fl">GHL Conversations</div>
+          <div class="fd">Rep replies via GHL Email tab</div>
+        </div>
+        <div class="arrow">➔</div>
+        <div class="flow-step">
+          <div class="icon">✅</div>
+          <div class="fl">Yelp Chat Bubble</div>
+          <div class="fd">Customer receives live in-app reply</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 2. THE 3 GOLDEN RULES ─── -->
+  <div class="section avoid-break">
+    <div class="section-title"><span class="snum">2</span> The 3 Golden Rules (Strict Operations Policy)</div>
+    <div class="rules-grid">
+      <div class="rule-card rule-gold">
+        <div class="rule-title">🥇 Rule 1: Always Reply via EMAIL</div>
+        <div class="rule-body">
+          The customer's email in GHL is mapped to Yelp's relay (<code>leadsapi+...@messaging.yelp.com</code>). 
+          <strong>Always keep the composer on Email</strong>. Yelp intercepts your email and posts it as a live chat bubble on the customer's phone screen. <em>Never switch to SMS for initial Yelp leads!</em>
+        </div>
+      </div>
+      <div class="rule-card rule-silver">
+        <div class="rule-title">🥈 Rule 2: Phone Number Protocol</div>
+        <div class="rule-body">
+          If a customer provided a phone number, it is stored in their profile and tagged <code>yelp-phone-captured</code>. 
+          <strong>Call them directly</strong> if they ask for a call or if a large job needs rapid qualification. <strong>Never</strong> send unprompted marketing text blasts.
+        </div>
+      </div>
+      <div class="rule-card rule-bronze">
+        <div class="rule-title">🥉 Rule 3: Keep biz.yelp.com Closed</div>
+        <div class="rule-body">
+          If you leave <code>biz.yelp.com</code> or the Yelp for Business app open on your computer or phone, Yelp thinks you are chatting on their site and <strong>suppresses real-time email notifications to GHL</strong>. Conduct all chatting inside GHL.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 3. WHERE TO FIND YELP LEADS ─── -->
+  <div class="section avoid-break">
+    <div class="section-title"><span class="snum">3</span> Where to Find Yelp Leads in GoHighLevel</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">Area</th>
+          <th style="width: 35%;">What You See</th>
+          <th style="width: 40%;">How to Use It</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Conversations ➔ All</strong></td>
+          <td>Chats tagged with <span class="badge bb">source: yelp</span> and <span class="badge bp">yelp-lead</span></td>
+          <td>Click to open the conversation thread. Read inbound customer messages and reply using the <strong>Email</strong> tab.</td>
+        </tr>
+        <tr>
+          <td><strong>Contact Details Panel</strong></td>
+          <td>Folder: <code>Yelp Lead Details</code></td>
+          <td>Contains parsed data: <em>Bedrooms, Bathrooms, Service Type, Frequency, Notes,</em> and <em>Captured Phone</em>.</td>
+        </tr>
+        <tr>
+          <td><strong>Opportunities Pipeline</strong></td>
+          <td><code>Pipeline [N] - Yelp Leads Pipeline</code></td>
+          <td>Kanban board showing deal progress across all 8 stages from New Lead to Closed Won.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── PAGE BREAK FOR CLEAN PRINTING ─── -->
+  <div class="page-break"></div>
+
+  <!-- ─── 4. STEP-BY-STEP SOP ─── -->
+  <div class="section">
+    <div class="section-title"><span class="snum">4</span> Step-by-Step SOP: Handling a Lead from Inbound to Booked</div>
+
+    <div style="margin-bottom: 12px;">
+      <h4 style="font-size: 11.5px; color: #1e3a8a; margin-bottom: 3px;">Step 1: Lead Ingestion & Automated Intake (Minutes 0 – 2)</h4>
+      <p>The lead automatically enters <strong>Stage 1: New Leads</strong>. The automation waits 90 seconds (giving Yelp's phone API time to attach a phone number) and sends a personalized initial greeting. <strong>No action is required from you yet.</strong></p>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <h4 style="font-size: 11.5px; color: #1e3a8a; margin-bottom: 3px;">Step 2: Customer Replies in Yelp Chat (Active Lead)</h4>
+      <p>When the customer replies on Yelp, their message instantly appears in <strong>GHL Conversations</strong>. The system automatically cancels further automated no-answer nudges. <strong>Your Action:</strong> Drag the Opportunity card to <strong>Stage 3: In Conversation / Qualified</strong>.</p>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <h4 style="font-size: 11.5px; color: #1e3a8a; margin-bottom: 3px;">Step 3: Calculating and Sending the Quote</h4>
+      <p>Check the <code>Yelp Lead Details</code> folder (Bedrooms, Bathrooms, Notes). In GHL Conversations, ensure the <strong>Email</strong> tab is selected, and send your quote:</p>
+      <div class="script-box">
+        "Hi {{contact.first_name}}, thanks for reaching out! For a [X] bed / [Y] bath [Service Type], our estimate is $[Price] (approx. [Hours] labor hours). We have availability this [Day] morning or [Day] afternoon. Would either of those work best for your schedule?"
+      </div>
+      <p>After clicking Send, drag the Opportunity card to <strong>Stage 4: Quoted</strong> and add tag <span class="badge ba">yelp-quote-sent</span>.</p>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <h4 style="font-size: 11.5px; color: #1e3a8a; margin-bottom: 3px;">Step 4: Booking the Job & Collecting Payment</h4>
+      <p>When the customer confirms: collect their full address, schedule the clean on the GHL Calendar, drag the card to <strong>Stage 8: Closed Won</strong>, and send a final Yelp confirmation message:</p>
+      <div class="script-box">
+        "You are all set for [Day, Date] at [Time]! Our team looks forward to serving you. If you need anything before your clean, reach out here or call us at [Office Phone]."
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 5. THE 8 PIPELINE STAGES ─── -->
+  <div class="section avoid-break">
+    <div class="section-title"><span class="snum">5</span> The 8 Pipeline Stages & Automated Movement</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 6%;">#</th>
+          <th style="width: 26%;">Stage Name</th>
+          <th style="width: 38%;">Meaning / Action</th>
+          <th style="width: 30%;">Automation Behavior</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>1</strong></td>
+          <td><strong>New Leads</strong></td>
+          <td>Initial landing stage for every new Yelp quote request.</td>
+          <td>System fires 90s auto-response.</td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td><strong>No Answer</strong></td>
+          <td>Customer has not replied to initial greeting within 24h.</td>
+          <td><strong>Moved automatically</strong> by workflow; sends Nudge #1.</td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td><strong>Quoted</strong></td>
+          <td>Formal estimate sent; awaiting customer booking decision.</td>
+          <td>Manual move by Rep; triggers 48h quote check-in.</td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td><strong>Follow Up (Manual)</strong></td>
+          <td>Special handling required (e.g. custom sq footage, phone call).</td>
+          <td>Manual move by Rep for personal follow-up.</td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td><strong>Follow Up (Automated)</strong></td>
+          <td>Customer has gone silent for 72h+ without replying.</td>
+          <td><strong>Moved automatically</strong> by workflow; sends final check-in.</td>
+        </tr>
+        <tr>
+          <td><strong>6</strong></td>
+          <td><strong>Interested but not booked</strong></td>
+          <td>Customer engaged but waiting on spouse, date, or budget.</td>
+          <td>Manual move by Rep; paused from automated drips.</td>
+        </tr>
+        <tr>
+          <td><strong>7</strong></td>
+          <td><strong>Not Qualified</strong></td>
+          <td>Out of service radius, spam, or unsupported service type.</td>
+          <td>Manual move by Rep; disarms all workflows.</td>
+        </tr>
+        <tr>
+          <td><strong>8</strong></td>
+          <td><strong>Closed Won</strong></td>
+          <td>Customer confirmed, deposit collected, scheduled on calendar.</td>
+          <td>Manual move by Rep; tags <span class="badge bg">yelp-booked</span>.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ─── 6. FREQUENTLY ASKED QUESTIONS & TROUBLESHOOTING ─── -->
+  <div class="section avoid-break">
+    <div class="section-title"><span class="snum">6</span> Frequently Asked Questions & Troubleshooting</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 35%;">Question / Issue</th>
+          <th style="width: 65%;">Explanation & Solution</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Is moving a card to "Follow Up (Automated)" supposed to trigger a workflow?</strong></td>
+          <td><strong>No.</strong> In the Jacksonville Standard, <code>Follow Up (Automated)</code> is an <strong>output destination</strong> that the workflow automatically moves contacts into after 72 hours of silence. It is not an input trigger.</td>
+        </tr>
+        <tr>
+          <td><strong>Why was the response time slow previously, and how is it fixed?</strong></td>
+          <td>Previously, leads were either delayed or misrouted. In our new setup, the automated intake sends an official response in under <strong>90 seconds</strong>, which permanently restores the <em>"Typically replies in minutes"</em> badge on Yelp.</td>
+        </tr>
+        <tr>
+          <td><strong>Customer message didn't appear in GHL?</strong></td>
+          <td>Check if someone has <code>biz.yelp.com</code> or the Yelp for Business mobile app actively open. Close all Yelp Biz tabs so Yelp routes notifications via email to GHL.</td>
+        </tr>
+        <tr>
+          <td><strong>Message failed to send from GHL?</strong></td>
+          <td>Check the selected communication tab. If you accidentally clicked <strong>SMS</strong>, change it to <strong>Email</strong> and re-send.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</body>
+</html>
