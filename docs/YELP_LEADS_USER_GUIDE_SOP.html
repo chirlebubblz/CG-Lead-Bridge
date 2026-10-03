@@ -234,6 +234,13 @@
         </div>
       </div>
     </div>
+
+    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3.5px solid #2563eb; border-radius: 6px; padding: 7px 10px; font-size: 10px; margin-top: -6px; margin-bottom: 12px; color: #1e293b;">
+      <strong>🔍 Email Relay Mechanics (Subject vs. Body & Workflows vs. Conversations):</strong><br>
+      • <strong>Subject Line:</strong> <u>Ignored and discarded by Yelp</u>. The customer never sees it. (GHL only requires it to send).<br>
+      • <strong>Email Body:</strong> Extracted by Yelp and rendered directly as the <u>live chat bubble</u> inside the consumer's Yelp app.<br>
+      • <strong>Workflow Emails vs. Conversations:</strong> Workflows send automated 90s greetings & 24h nudges; the Conversations tab is where reps type manual 1-on-1 replies (custom pricing & booking). Both send via <strong>Email</strong> to reach Yelp chat.
+    </div>
   </div>
 
   <!-- ─── 3. WHERE TO FIND YELP LEADS ─── -->
@@ -378,6 +385,10 @@
         </tr>
       </thead>
       <tbody>
+        <tr>
+          <td><strong>Do we send messages via email? Which part reaches the lead?</strong></td>
+          <td><strong>Yes.</strong> We compose using the <strong>Email</strong> tab in GHL. Yelp's relay server completely strips and discards the Subject line. Only the <strong>Email Body</strong> is extracted and displayed to the customer as an in-app chat bubble.</td>
+        </tr>
         <tr>
           <td><strong>Is moving a card to "Follow Up (Automated)" supposed to trigger a workflow?</strong></td>
           <td><strong>No.</strong> In the Jacksonville Standard, <code>Follow Up (Automated)</code> is an <strong>output destination</strong> that the workflow automatically moves contacts into after 72 hours of silence. It is not an input trigger.</td>

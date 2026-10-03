@@ -28,9 +28,15 @@ When a homeowner or customer requests a quote or sends a message on **Yelp**, it
 ## ⚠️ 2. The 3 Golden Rules (CRITICAL)
 
 ### 🥇 Rule 1: Always Reply via the "Email" Tab in GHL
-* **Why:** The customer's "email address" in GHL is actually a special Yelp communication bridge (`leadsapi+...`).
+* **Why:** The customer's "email address" in GHL is actually a special Yelp communication bridge (`leadsapi+<leadId>@messaging.yelp.com`).
 * **The Magic:** When you click **Email** and hit Send in GHL, Yelp receives your message and immediately converts it into a **native chat bubble** inside the customer's Yelp app!
 * **What NEVER to do:** Do NOT attempt to switch the channel to SMS or WhatsApp for initial Yelp leads. The customer is waiting on the Yelp app.
+
+#### 🔍 How Yelp Handles Email: Subject Line vs. Email Body
+| Email Field | What Happens on Yelp | Customer Experience |
+| :--- | :--- | :--- |
+| **Subject Line** | **Discarded / Ignored by Yelp.** Yelp’s system completely strips out the subject line. | Customer **never** sees the subject. *(We only enter a subject like "Your Cleaning Request" because GHL requires every email to have a subject).* |
+| **Email Body** | **Extracted and converted into a Chat Bubble.** Yelp takes your plain text body and renders it in real-time. | Customer sees your exact text message as an official chat bubble inside their Yelp mobile app or browser. |
 
 ---
 
@@ -47,7 +53,28 @@ When a homeowner or customer requests a quote or sends a message on **Yelp**, it
 
 ---
 
-## 🧭 3. Where to Find Yelp Leads in GoHighLevel
+## 🔄 3. Workflow Emails vs. Conversations Tab (Automated vs. Manual)
+
+Both tools send messages via the Yelp email relay, but they serve distinct operational roles:
+
+| Feature | 🤖 Workflow Emails (Automated) | 💬 Conversations Tab (Manual Rep) |
+| :--- | :--- | :--- |
+| **Who Sends It** | Automated GHL Bot / System | Sales Rep, Dispatcher, or Virtual Assistant |
+| **When It Fires** | Instant (90s buffer), 24h nudge, 72h check-in | When customer replies, custom quoting, scheduling |
+| **Trigger** | Automatic tags (`source: yelp`) or stage delays | Human typing in GHL composer window |
+| **Purpose** | Fast response to maintain Yelp's *"Replies in minutes"* badge; follows up if lead goes cold | Answering questions, negotiating rates, booking cleans |
+| **GHL Location** | **Automation ➔ Workflows** | **Conversations ➔ All** |
+
+#### How a Rep Uses the Conversations Tab:
+1. Open the contact in **Conversations ➔ All**.
+2. In the bottom composer, verify the **Email** tab is selected (do not select SMS).
+3. Leave the subject line as default (e.g., `Re: Cleaning Quote`).
+4. Type your message in the text area (e.g., *"Hi Sarah, we can do Friday at 9am for $240! Would you like me to lock that in for you?"*).
+5. Click **Send**. Yelp renders it as an in-app chat bubble in seconds!
+
+---
+
+## 🧭 4. Where to Find Yelp Leads in GoHighLevel
 
 ### A. The Conversations Tab (`Conversations ➔ All`)
 * Look for contacts with the tag `source: yelp` or `yelp-lead`.
@@ -72,7 +99,7 @@ Every Yelp inquiry has an Opportunity card with their estimated job value.
 
 ---
 
-## 📋 4. Step-by-Step SOP: Handling a Lead from Inbound to Booked
+## 📋 5. Step-by-Step SOP: Handling a Lead from Inbound to Booked
 
 ```
 [New Lead] ➔ [Auto-Reply Sent] ➔ [Customer Replies] ➔ [Send Custom Quote] ➔ [Book / Deposit]
@@ -127,7 +154,7 @@ If the customer has not replied within 24 hours:
 
 ---
 
-## 📊 5. The 8 Pipeline Stages & Meanings
+## 📊 6. The 8 Pipeline Stages & Meanings
 
 | # | Stage Name | Description & Action |
 | :-: | :--- | :--- |
@@ -142,7 +169,7 @@ If the customer has not replied within 24 hours:
 
 ---
 
-## 💡 6. Quick Reference: Common Scenarios
+## 💡 7. Quick Reference: Common Scenarios
 
 ### Scenario A: Customer says *"Can you call me?"*
 * Check the **Yelp Phone Captured** field or conversation text.
