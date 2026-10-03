@@ -1,9 +1,9 @@
-﻿services:
+services:
   - type: web
     name: cleangenie-lead-bridge
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --production=false && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:
