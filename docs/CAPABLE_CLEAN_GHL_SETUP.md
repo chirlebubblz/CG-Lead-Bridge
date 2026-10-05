@@ -96,10 +96,17 @@ Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 - **Action 3: Wait 90 Seconds**
   - Wait Time: `90 Seconds` (Buffer for companion Zap 2 to attach customer phone number)
 
-- **Action 4: Internal Team Alert**
-  - Action: `Internal Notification` (Email or In-App Notification to owner/sales team)
-  - Message:
-    > *"🚨 New Yelp Lead: {{contact.name}} requested {{contact.yelp_service_type}}.\nPhone: {{contact.phone}}\nInitial response sent via Yelp Relay. View conversation in GHL: https://app.gohighlevel.com"*
+- **Action 4: Internal Team Alert (Quo SMS & Email to Brendon)**
+  - **Notification 1 (SMS to Quo):**
+    - Action Type: `Internal Notification` ➔ `SMS`
+    - Send To: `Custom Number`: `+17144553578` (or User: `Brendon Thomas`)
+    - Message Template:
+      > *"🚨 New Yelp Lead: {{contact.name}}\nService: {{contact.yelp_service_type}}\nSize: {{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath\nCustomer Phone: {{contact.phone}}\nNotes: {{contact.yelp_notes__customer_request}}\nView Lead in GHL: https://app.gohighlevel.com/v2/location/s94e80clit6bCL9VBWgl/conversations"*
+  - **Notification 2 (Email Alert):**
+    - Action Type: `Internal Notification` ➔ `Email`
+    - Send To: `Brendon@capableclean.com` (and `info@capableclean.com`)
+    - Subject: `🚨 New Yelp Lead: {{contact.name}} ({{contact.yelp_service_type}})`
+    - Message: Full contact card details, quote questionnaire responses, and direct link to GHL conversation.
 
 - **Action 5: Wait 24 Hours (No-Answer Delay)**
   - Wait Time: `24 Hours`
@@ -161,7 +168,9 @@ Workflow Name: **`(Yelp Leads) Master Inbound Intake & Auto-Followup`**
 ### Workflow 4: `(Yelp Leads) Customer Replied (Exit Followup)`
 * **Trigger:** Customer Replied (Channel: `Live_Chat`, `Custom`, or `Email`)
 * **Filter:** Contact Tag contains `yelp-lead`
-* **Action:** Remove from Workflow `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+* **Step 1:** Remove from Workflow `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+* **Step 2 (Optional Quo Alert):** `Internal Notification` ➔ `SMS` to `+17144553578` (Brendon's Quo):
+  > *"💬 Yelp Customer Replied: {{contact.name}} just sent a new message in Yelp chat. Open GHL to view and reply: https://app.gohighlevel.com/v2/location/s94e80clit6bCL9VBWgl/conversations"*
 
 ---
 
