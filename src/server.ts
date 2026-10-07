@@ -364,11 +364,37 @@ app.post('/webhook/ghl-delivery', async (req: Request, res: Response) => {
       await ThumbtackService.sendReply(thumbtackLeadId, messageText);
     } else {
       // Default: Yelp — try all possible lead ID fields
-      const yelpLeadId = body?.replyToAltId
+      let yelpLeadId = body?.replyToAltId
         || body?.altId
         || body?.conversationAltId
         || body?.leadId
         || body?.customFields?.yelp_lead_id;
+
+      // Fallback: If not present in payload, look up contact in GHL to extract lead ID
+      if (!yelpLeadId && contactId) {
+        try {
+          const locationId = body?.locationId || body?.location_id || config.ghl.locationId;
+          const contact = await GHLService.getContact(contactId, locationId);
+          if (contact) {
+            // Check custom fields
+            const cf = contact.customFields || [];
+            const yelpField = cf.find((f: any) => f.key === 'yelp_lead_id' || f.id === 'xofbiSRUGxxg2jFbVlRr' || f.id === '77hnROLGu93J1yZFvQvq');
+            if (yelpField?.value) {
+              yelpLeadId = yelpField.value;
+            }
+
+            // Check email: leadsapi+<leadId>@messaging.yelp.com
+            if (!yelpLeadId && contact.email) {
+              const emailMatch = contact.email.match(/leadsapi\+([a-zA-Z0-9_\-]+)@/i) || contact.email.match(/reply\+([a-zA-Z0-9_\-]+)@/i);
+              if (emailMatch) {
+                yelpLeadId = emailMatch[1];
+              }
+            }
+          }
+        } catch (fetchErr: any) {
+          addLog('[GHL Delivery] Could not fetch contact for yelpLeadId fallback', { error: fetchErr.message });
+        }
+      }
 
       if (!yelpLeadId) {
         addLog('[GHL Delivery] ⚠️ No yelp_lead_id found — cannot relay to Yelp. Full body keys: ' + Object.keys(body || {}).join(', '));

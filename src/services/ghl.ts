@@ -105,6 +105,16 @@ export class GHLService {
   }
 
   /**
+   * Fetch a contact by ID
+   */
+  public static async getContact(contactId: string, locationId?: string): Promise<any> {
+    const locId = locationId || config.ghl.locationId;
+    const url = `${config.ghl.apiUrl}/contacts/${contactId}`;
+    const res = await axios.get(url, { headers: this.getHeaders(locId) });
+    return res.data?.contact || null;
+  }
+
+  /**
    * Post an inbound message into GHL Conversations
    */
   public static async postInboundMessage(payload: {
