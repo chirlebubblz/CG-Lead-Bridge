@@ -145,13 +145,16 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       const isNewQuote = /requested a quote|How many bedrooms|new .* cleaning request/i.test(directMessage);
 
       // Extract customer name from subject or body if missing or generic Yelp sender
-      if (!name || ['Yelp Customer', 'Yelp', 'Yelp Inbox'].includes(name)) {
+      const isGenericName = !name || ['Yelp Customer', 'Yelp', 'Yelp Inbox', 'Yelp Notifications'].includes(name) || /@yelp\.com$/i.test(name);
+      if (isGenericName) {
         if (/response to\s+(.+)$/i.test(subject)) {
           name = subject.match(/response to\s+(.+)$/i)![1].trim();
         } else if (/sent a message/i.test(subject)) {
           name = subject.split(/sent a message/i)[0].trim();
+        } else if (/New (?:lead|quote request)(?:\s+from)?\s+([^for\n]+?)(?:\s+for|\s*$)/i.test(subject)) {
+          name = subject.match(/New (?:lead|quote request)(?:\s+from)?\s+([^for\n]+?)(?:\s+for|\s*$)/i)![1].trim();
         } else {
-          const nameMatch = directMessage.match(/^([a-zA-Z\s]+?)\s+requested a quote/i);
+          const nameMatch = directMessage.match(/([a-zA-Z\s]+?)\s+requested a quote/i);
           if (nameMatch) name = nameMatch[1].trim();
         }
       }

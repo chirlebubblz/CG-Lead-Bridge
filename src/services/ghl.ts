@@ -177,10 +177,32 @@ export class GHLService {
     const locId = details.locationId || config.ghl.locationId;
     const headers = this.getHeaders(locId);
 
-    // 1. Search by email or phone (GET /contacts/search/duplicate)
-    const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
+    // 1. First priority: Search by exact Yelp Lead ID in custom fields (reconciles Zap 1 & Render bridge)
     try {
+      if (details.leadId) {
+        const advSearchUrl = `${config.ghl.apiUrl}/contacts/search`;
+        const advRes = await axios.post(advSearchUrl, {
+          locationId: locId,
+          pageLimit: 10,
+          filters: [
+            {
+              field: 'customFields.yelp_lead_id',
+              operator: 'eq',
+              value: details.leadId,
+            },
+          ],
+        }, { headers });
+
+        const matchedContact = advRes.data?.contacts?.[0];
+        if (matchedContact?.id) {
+          console.log(`[GHLService] Matched contact by yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedContact.id}`);
+          return matchedContact.id;
+        }
+      }
+
+      // 2. Search by email or phone (GET /contacts/search/duplicate)
       if (details.email || details.phone) {
+        const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
         const params: any = {
           locationId: locId,
         };
@@ -196,7 +218,8 @@ export class GHLService {
           return searchRes.data.contact.id;
         }
       }
-      // 2. Search by Yelp Lead ID or Name across existing contacts in the location
+
+      // 3. Search by Yelp Lead ID or Name across existing contacts in the location
       if (details.leadId || (details.name && details.name !== 'Yelp Customer')) {
         const queryTerm = (details.name && details.name !== 'Yelp Customer') ? details.name.trim() : details.leadId;
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
@@ -282,6 +305,24 @@ export class GHLService {
     }
 
     try {
+      // Deduplication check: Check if an opportunity already exists for this contact in this pipeline
+      const searchUrl = `${config.ghl.apiUrl}/opportunities/search`;
+      const searchRes = await axios.get(searchUrl, {
+        params: {
+          location_id: locId,
+          contact_id: params.contactId,
+        },
+        headers: this.getHeaders(locId),
+      });
+
+      const existingOpp = searchRes.data?.opportunities?.find(
+        (o: any) => o.pipelineId === pipelineConfig.pipelineId
+      );
+      if (existingOpp) {
+        console.log(`[GHLService] Opportunity ${existingOpp.id} already exists for contact ${params.contactId} in pipeline ${pipelineConfig.pipelineId}. Skipping duplicate creation.`);
+        return existingOpp.id;
+      }
+
       const oppUrl = `${config.ghl.apiUrl}/opportunities/`;
       const res = await axios.post(oppUrl, {
         pipelineId: pipelineConfig.pipelineId,
