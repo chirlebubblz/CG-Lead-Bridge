@@ -177,26 +177,19 @@ export class GHLService {
     const locId = details.locationId || config.ghl.locationId;
     const headers = this.getHeaders(locId);
 
-    // 1. First priority: Search by exact Yelp Lead ID in custom fields (reconciles Zap 1 & Render bridge)
+    // 1. First priority: Search by exact Yelp Lead ID in custom fields (reconciles Zap 1, Zap 2 & Render bridge)
     try {
       if (details.leadId) {
-        const advSearchUrl = `${config.ghl.apiUrl}/contacts/search`;
-        const advRes = await axios.post(advSearchUrl, {
-          locationId: locId,
-          pageLimit: 10,
-          filters: [
-            {
-              field: 'customFields.yelp_lead_id',
-              operator: 'eq',
-              value: details.leadId,
-            },
-          ],
-        }, { headers });
-
-        const matchedContact = advRes.data?.contacts?.[0];
-        if (matchedContact?.id) {
-          console.log(`[GHLService] Matched contact by yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedContact.id}`);
-          return matchedContact.id;
+        const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+          params: { locationId: locId, limit: 50 },
+          headers,
+        });
+        const matchedByLeadId = (recentRes.data?.contacts || []).find((c: any) =>
+          c.customFields?.some((f: any) => f.value === details.leadId)
+        );
+        if (matchedByLeadId?.id) {
+          console.log(`[GHLService] Matched contact by customField yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
+          return matchedByLeadId.id;
         }
       }
 
@@ -219,9 +212,9 @@ export class GHLService {
         }
       }
 
-      // 3. Search by Yelp Lead ID or Name across existing contacts in the location
-      if (details.leadId || (details.name && details.name !== 'Yelp Customer')) {
-        const queryTerm = (details.name && details.name !== 'Yelp Customer') ? details.name.trim() : details.leadId;
+      // 3. Search by Name across existing contacts in the location
+      if (details.name && details.name !== 'Yelp Customer') {
+        const queryTerm = details.name.trim();
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: {
             locationId: locId,
@@ -357,14 +350,14 @@ export class GHLService {
       ? { Authorization: authHeader, Version: '2021-07-28', 'Content-Type': 'application/json' }
       : this.getHeaders(locId);
 
-    // 1. Try matching existing contact by Yelp Lead ID if provided
+    // 1. Try matching existing contact by Yelp Lead ID inside customFields across recent contacts
     if (leadId) {
       try {
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
-          params: { locationId: locId, query: leadId },
+          params: { locationId: locId, limit: 50 },
           headers,
         });
-        const match = queryRes.data?.contacts?.find((c: any) =>
+        const match = (queryRes.data?.contacts || []).find((c: any) =>
           c.customFields?.some((f: any) => f.value === leadId)
         );
         if (match?.id) {
@@ -391,7 +384,7 @@ export class GHLService {
           return match.id;
         }
       } catch (e) {
-        // Fall through to native upsert
+        // Fall through to next tier
       }
     }
 
