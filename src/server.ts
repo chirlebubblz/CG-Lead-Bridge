@@ -362,14 +362,25 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       payload.phone = payload.phone.trim();
     }
 
-    // Extract leadId if passed at top-level or inside customFields
+    // Extract leadId if passed at top-level or inside customFields across all 8 locations
     let leadId = payload.leadId || payload.lead_id;
     delete payload.leadId;
     delete payload.lead_id;
 
+    const KNOWN_LEAD_ID_FIELDS = new Set([
+      'K76pF6924CuFnr3ZfciK', // Jacksonville Cleaning Co
+      'Kkm6Kz8HxwC2XpeC2e6A', // Capable Clean
+      '00pY3JUPGvBTS87b2no1', // Ascend Cleaning
+      'yLmWGwpt8XKke8rinDSG', // The Sparkle Squad Co (Miami)
+      'zI2KtX2j7gptvuYwoflv', // Sunny Side Clean Team
+      'VxYsxN4PvMUo3fcc5VU2', // Puget Sound Cleaners
+      'xofbiSRUGxxg2jFbVlRr', // Mum's Cleaning Services Chicago
+      '77hnROLGu93J1yZFvQvq', // Ya'll Maid Austin
+    ]);
+
     if (!leadId && Array.isArray(payload.customFields)) {
       const leadField = payload.customFields.find(
-        (f: any) => f.key === 'yelp_lead_id' || f.id === '00pY3JUPGvBTS87b2no1'
+        (f: any) => f.key === 'yelp_lead_id' || KNOWN_LEAD_ID_FIELDS.has(f.id)
       );
       if (leadField?.value) leadId = leadField.value;
     }
