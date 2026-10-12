@@ -343,5 +343,62 @@ export class GHLService {
       return null;
     }
   }
+
+  /**
+   * Smart Upsert: Reconciles by Yelp Lead ID first, or falls back to sanitized GHL /contacts/upsert
+   */
+  public static async smartUpsertContact(
+    payload: Record<string, any>,
+    leadId?: string,
+    authHeader?: string
+  ): Promise<string> {
+    const locId = payload.locationId || config.ghl.locationId;
+    const headers = authHeader
+      ? { Authorization: authHeader, Version: '2021-07-28', 'Content-Type': 'application/json' }
+      : this.getHeaders(locId);
+
+    // 1. Try matching existing contact by Yelp Lead ID if provided
+    if (leadId) {
+      try {
+        const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+          params: { locationId: locId, query: leadId },
+          headers,
+        });
+        const match = queryRes.data?.contacts?.find((c: any) =>
+          c.customFields?.some((f: any) => f.value === leadId)
+        );
+        if (match?.id) {
+          const updateBody: Record<string, any> = {};
+          if (payload.phone) updateBody.phone = payload.phone;
+          if (payload.name) updateBody.name = payload.name;
+          if (payload.firstName) updateBody.firstName = payload.firstName;
+          if (payload.lastName) updateBody.lastName = payload.lastName;
+          if (!match.email && payload.email) updateBody.email = payload.email;
+          if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+            updateBody.customFields = payload.customFields;
+          }
+
+          await axios.put(`${config.ghl.apiUrl}/contacts/${match.id}`, updateBody, { headers });
+
+          if (Array.isArray(payload.tags) && payload.tags.length > 0) {
+            await axios.post(
+              `${config.ghl.apiUrl}/contacts/${match.id}/tags`,
+              { tags: payload.tags },
+              { headers }
+            );
+          }
+          console.log(`[GHLService] SmartUpsert updated existing contact ${match.id} by leadId ${leadId}`);
+          return match.id;
+        }
+      } catch (e) {
+        // Fall through to native upsert
+      }
+    }
+
+    // 2. Native GHL /contacts/upsert with sanitized payload (no empty email/phone strings)
+    const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
+    return res.data?.contact?.id;
+  }
 }
+
 

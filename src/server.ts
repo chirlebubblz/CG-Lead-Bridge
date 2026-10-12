@@ -337,6 +337,57 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
 });
 
 /**
+ * 1B. Smart GHL Contact Upsert Proxy (/contacts/upsert)
+ * Sanitizes empty "email": "" or "phone": "" fields from Zapier Custom Requests
+ * (preventing GHL 422 "email must be an email" errors when Yelp Temporary Email is empty)
+ * and reconciles contacts by Yelp Lead ID before falling back to GHL native upsert.
+ */
+app.post('/contacts/upsert', async (req: Request, res: Response) => {
+  try {
+    const payload = { ...(req.body || {}) };
+    const locationId = payload.locationId || config.ghl.locationId;
+    addLog('[Smart Upsert] Received Zapier upsert payload', payload);
+
+    // Strip empty or invalid email to prevent GHL 422 "email must be an email"
+    if (typeof payload.email !== 'string' || !payload.email.trim() || !payload.email.includes('@')) {
+      delete payload.email;
+    } else {
+      payload.email = payload.email.trim();
+    }
+
+    // Strip empty phone
+    if (typeof payload.phone !== 'string' || !payload.phone.trim()) {
+      delete payload.phone;
+    } else {
+      payload.phone = payload.phone.trim();
+    }
+
+    // Extract leadId if passed at top-level or inside customFields
+    let leadId = payload.leadId || payload.lead_id;
+    delete payload.leadId;
+    delete payload.lead_id;
+
+    if (!leadId && Array.isArray(payload.customFields)) {
+      const leadField = payload.customFields.find(
+        (f: any) => f.key === 'yelp_lead_id' || f.id === '00pY3JUPGvBTS87b2no1'
+      );
+      if (leadField?.value) leadId = leadField.value;
+    }
+
+    const contactId = await GHLService.smartUpsertContact(payload, leadId, req.headers.authorization);
+    res.status(200).json({
+      success: true,
+      contact: { id: contactId },
+    });
+  } catch (err: any) {
+    const status = err.response?.status || 500;
+    const data = err.response?.data || { message: err.message };
+    addLog('[Smart Upsert Error]', data);
+    res.status(status).json(data);
+  }
+});
+
+/**
  * 2. Outbound Delivery Webhook from GoHighLevel (Clean Genie)
  * Triggered when an agent types a reply in the GHL Conversations tab
  */
