@@ -395,7 +395,42 @@ export class GHLService {
       }
     }
 
-    // 2. Native GHL /contacts/upsert with sanitized payload (no empty email/phone strings)
+    // 2. If email is missing (Yelp sent "Temporary Email: No data") and no leadId matched,
+    // check if there is a recent Yelp contact (created in the last 30 mins) that still has no phone number
+    if (!payload.email && payload.phone) {
+      try {
+        const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+          params: { locationId: locId, query: 'leadsapi', limit: 10 },
+          headers,
+        });
+        const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+        const recentUnphoned = (recentRes.data?.contacts || []).find((c: any) => {
+          const created = c.dateAdded ? new Date(c.dateAdded).getTime() : 0;
+          return !c.phone && created >= thirtyMinsAgo;
+        });
+
+        if (recentUnphoned?.id) {
+          const updateBody: Record<string, any> = { phone: payload.phone };
+          if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+            updateBody.customFields = payload.customFields;
+          }
+          await axios.put(`${config.ghl.apiUrl}/contacts/${recentUnphoned.id}`, updateBody, { headers });
+          if (Array.isArray(payload.tags) && payload.tags.length > 0) {
+            await axios.post(
+              `${config.ghl.apiUrl}/contacts/${recentUnphoned.id}/tags`,
+              { tags: payload.tags },
+              { headers }
+            );
+          }
+          console.log(`[GHLService] SmartUpsert matched recent un-phoned Yelp contact ${recentUnphoned.id}`);
+          return recentUnphoned.id;
+        }
+      } catch (e) {
+        // Fall through to native upsert
+      }
+    }
+
+    // 3. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
     const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
     return res.data?.contact?.id;
   }
