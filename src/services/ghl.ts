@@ -73,6 +73,15 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   },
 };
 
+const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
+  // The Sparkle Squad Co (Miami)
+  'ThUMNqsKmDfYKMF0jsBb': 'de47c01d-cab0-44ea-a0ef-94e4a94dba2f',
+  // Puget Sound Cleaners
+  'MucxtGIfmvLViGQWD0CG': '7a95286d-4a43-48df-856e-122ee11c3ec9',
+  // Ascend Cleaning
+  'IdJoWa68hD3nVj45Fv7f': '9081ebf9-bd89-4857-9621-391c79a2db7c',
+};
+
 export class GHLService {
   private static getAccessToken(locationId?: string): string {
     if (locationId) {
@@ -162,6 +171,40 @@ export class GHLService {
   }
 
   /**
+   * Explicitly apply tags via /contacts/:id/tags and enroll in Master Intake workflow
+   * Runs after a brief delay so any initial inbound message bubble is posted first
+   * without triggering 'Stop on Response' prematurely.
+   */
+  public static triggerTagsAndWorkflow(contactId: string, locationId: string, tags: string[] = ['source: yelp', 'yelp-lead']): void {
+    const headers = this.getHeaders(locationId);
+    setTimeout(async () => {
+      try {
+        await axios.post(
+          `${config.ghl.apiUrl}/contacts/${contactId}/tags`,
+          { tags },
+          { headers }
+        );
+      } catch (e: any) {
+        console.warn(`[GHLService] Post-creation tag apply note for ${contactId}:`, e.response?.data || e.message);
+      }
+
+      const workflowId = KNOWN_INTAKE_WORKFLOWS[locationId];
+      if (workflowId) {
+        try {
+          await axios.post(
+            `${config.ghl.apiUrl}/contacts/${contactId}/workflow/${workflowId}`,
+            {},
+            { headers }
+          );
+          console.log(`[GHLService] Enrolled contact ${contactId} into intake workflow ${workflowId} (loc: ${locationId})`);
+        } catch (e: any) {
+          console.warn(`[GHLService] Workflow enrollment note for ${contactId}:`, e.response?.data || e.message);
+        }
+      }
+    }, 2500);
+  }
+
+  /**
    * Find an existing contact or create one if not found
    */
   public static async findOrCreateContact(details: {
@@ -177,24 +220,44 @@ export class GHLService {
     const locId = details.locationId || config.ghl.locationId;
     const headers = this.getHeaders(locId);
 
-    // 1. First priority: Search by exact Yelp Lead ID in custom fields (reconciles Zap 1, Zap 2 & Render bridge)
+    // 1. First priority: Scan 50 most recent contacts directly (bypasses Elasticsearch indexing lag)
+    // Matches by exact Yelp Lead ID in custom fields OR by exact full name on recent Yelp leads
     try {
+      const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+        params: { locationId: locId, limit: 50 },
+        headers,
+      });
+      const recentContacts: any[] = recentRes.data?.contacts || [];
+
       if (details.leadId) {
-        const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
-          params: { locationId: locId, limit: 50 },
-          headers,
-        });
-        const matchedByLeadId = (recentRes.data?.contacts || []).find((c: any) =>
-          c.customFields?.some((f: any) => f.value === details.leadId)
+        const matchedByLeadId = recentContacts.find((c: any) =>
+          c.customFields?.some((f: any) => f.value === details.leadId) ||
+          (c.email && c.email.toLowerCase().includes(details.leadId.toLowerCase()))
         );
         if (matchedByLeadId?.id) {
-          console.log(`[GHLService] Matched contact by customField yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
+          console.log(`[GHLService] Matched contact by customField/email yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
           return matchedByLeadId.id;
         }
       }
 
-      // 2. Search by email or phone (GET /contacts/search/duplicate)
-      if (details.email || details.phone) {
+      if (details.name && details.name !== 'Yelp Customer') {
+        const targetName = details.name.trim().toLowerCase();
+        const matchedByRecentName = recentContacts.find((c: any) => {
+          const full = (c.contactName || `${c.firstName || ''} ${c.lastName || ''}`).trim().toLowerCase();
+          return full === targetName;
+        });
+        if (matchedByRecentName?.id) {
+          console.log(`[GHLService] Matched recent contact by exact name "${details.name}" in location ${locId} -> ${matchedByRecentName.id}`);
+          return matchedByRecentName.id;
+        }
+      }
+    } catch (err) {
+      // Continue to next tier
+    }
+
+    // 2. Search by email or phone (GET /contacts/search/duplicate)
+    if (details.email || details.phone) {
+      try {
         const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
         const params: any = {
           locationId: locId,
@@ -210,10 +273,14 @@ export class GHLService {
         if (searchRes.data?.contact?.id) {
           return searchRes.data.contact.id;
         }
+      } catch (err) {
+        // Continue to next tier
       }
+    }
 
-      // 3. Search by Name across existing contacts in the location
-      if (details.name && details.name !== 'Yelp Customer') {
+    // 3. Search by Name across existing indexed contacts in the location
+    if (details.name && details.name !== 'Yelp Customer') {
+      try {
         const queryTerm = details.name.trim();
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: {
@@ -235,12 +302,12 @@ export class GHLService {
           console.log(`[GHLService] Matched contact by leadId/name "${details.leadId || details.name}" in location ${locId} -> ${match.id}`);
           return match.id;
         }
+      } catch (err) {
+        // Proceed to create if search finds no match
       }
-    } catch (err) {
-      // Proceed to create if search finds no match
     }
 
-    // 2. Create new contact
+    // 4. Create new contact
     const createUrl = `${config.ghl.apiUrl}/contacts/`;
     const names = (details.name || 'Yelp Customer').split(' ');
     const firstName = names[0];
@@ -271,7 +338,11 @@ export class GHLService {
       const createRes = await axios.post(createUrl, createPayload, {
         headers,
       });
-      return createRes.data?.contact?.id;
+      const newContactId = createRes.data?.contact?.id;
+      if (newContactId) {
+        this.triggerTagsAndWorkflow(newContactId, locId, ['source: yelp', 'yelp-lead']);
+      }
+      return newContactId;
     } catch (err: any) {
       // If contact already exists in GHL, reuse matching contactId
       if (err.response?.data?.meta?.contactId) {
@@ -425,7 +496,11 @@ export class GHLService {
 
     // 3. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
     const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
-    return res.data?.contact?.id;
+    const contactId = res.data?.contact?.id;
+    if (contactId && Array.isArray(payload.tags) && payload.tags.includes('source: yelp')) {
+      this.triggerTagsAndWorkflow(contactId, locId, payload.tags);
+    }
+    return contactId;
   }
 }
 
