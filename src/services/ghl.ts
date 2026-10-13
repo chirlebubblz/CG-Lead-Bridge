@@ -74,12 +74,22 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
 };
 
 const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
-  // The Sparkle Squad Co (Miami)
-  'ThUMNqsKmDfYKMF0jsBb': 'de47c01d-cab0-44ea-a0ef-94e4a94dba2f',
-  // Puget Sound Cleaners
-  'MucxtGIfmvLViGQWD0CG': '7a95286d-4a43-48df-856e-122ee11c3ec9',
+  // Jacksonville Cleaning Co
+  'EKXbBmGEV6hnLQFQRPc7': 'e8b97156-510c-4a30-bd9b-12c9dd5ccc7f',
+  // Capable Clean
+  's94e80clit6bCL9VBWgl': '1a15dac8-d602-48a7-948e-b25103feae23',
   // Ascend Cleaning
   'IdJoWa68hD3nVj45Fv7f': '9081ebf9-bd89-4857-9621-391c79a2db7c',
+  // The Sparkle Squad Co (Miami)
+  'ThUMNqsKmDfYKMF0jsBb': 'de47c01d-cab0-44ea-a0ef-94e4a94dba2f',
+  // Sunny Side Clean Team
+  'WOwi6fpdaZavuqHU8Rux': '17ab8ca4-ce33-4925-a5dc-1ced6734db34',
+  // Puget Sound Cleaners
+  'MucxtGIfmvLViGQWD0CG': '7a95286d-4a43-48df-856e-122ee11c3ec9',
+  // Mum's Cleaning Services Chicago
+  'YVtPYdLotWLwuy5AA8Vv': 'c3be0b24-5bc7-4ff1-ad57-9dc6aeaf0467',
+  // Ya'll Maid Austin
+  '19jBWYeRsrzDq6Oe1nth': 'b57e3d68-e8ef-4af4-adcc-edfc88b0017b',
 };
 
 export class GHLService {
