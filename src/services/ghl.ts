@@ -93,6 +93,63 @@ const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
 };
 
 export class GHLService {
+  private static recentContactCache = new Map<string, { contactId: string; timestamp: number }>();
+
+  public static cacheContact(
+    locationId: string,
+    contactId: string,
+    info: { leadId?: string; name?: string; email?: string; phone?: string }
+  ): void {
+    const now = Date.now();
+    if (info.leadId && !info.leadId.startsWith('yelp_17')) {
+      this.recentContactCache.set(`lead:${locationId}:${info.leadId.trim().toLowerCase()}`, { contactId, timestamp: now });
+    }
+    if (info.name && info.name.trim().toLowerCase() !== 'yelp customer') {
+      this.recentContactCache.set(`name:${locationId}:${info.name.trim().toLowerCase()}`, { contactId, timestamp: now });
+    }
+    if (info.email) {
+      this.recentContactCache.set(`email:${locationId}:${info.email.trim().toLowerCase()}`, { contactId, timestamp: now });
+    }
+    if (info.phone) {
+      const digits = info.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (digits.length === 10) {
+        this.recentContactCache.set(`phone:${locationId}:${digits}`, { contactId, timestamp: now });
+      }
+    }
+  }
+
+  public static getCachedContact(
+    locationId: string,
+    info: { leadId?: string; name?: string; email?: string; phone?: string }
+  ): string | null {
+    const ttl = 60 * 60 * 1000; // 60 minutes
+    const now = Date.now();
+    const keys: string[] = [];
+
+    if (info.leadId && !info.leadId.startsWith('yelp_17')) {
+      keys.push(`lead:${locationId}:${info.leadId.trim().toLowerCase()}`);
+    }
+    if (info.email) {
+      keys.push(`email:${locationId}:${info.email.trim().toLowerCase()}`);
+    }
+    if (info.phone) {
+      const digits = info.phone.replace(/[^0-9]/g, '').slice(-10);
+      if (digits.length === 10) keys.push(`phone:${locationId}:${digits}`);
+    }
+    if (info.name && info.name.trim().toLowerCase() !== 'yelp customer') {
+      keys.push(`name:${locationId}:${info.name.trim().toLowerCase()}`);
+    }
+
+    for (const k of keys) {
+      const entry = this.recentContactCache.get(k);
+      if (entry && now - entry.timestamp < ttl) {
+        console.log(`[GHLService] Instant cache hit (${k}) -> ${entry.contactId}`);
+        return entry.contactId;
+      }
+    }
+    return null;
+  }
+
   private static getAccessToken(locationId?: string): string {
     if (locationId) {
       if (process.env.GHL_TOKENS) {
@@ -230,7 +287,14 @@ export class GHLService {
     const locId = details.locationId || config.ghl.locationId;
     const headers = this.getHeaders(locId);
 
-    // 1. First priority: Scan 50 most recent contacts directly (bypasses Elasticsearch indexing lag)
+    // 0. Zero-latency in-memory cache check (bypasses GHL's 10-15s Elasticsearch indexing delay)
+    const cachedId = this.getCachedContact(locId, details);
+    if (cachedId) {
+      this.cacheContact(locId, cachedId, details);
+      return cachedId;
+    }
+
+    // 1. First priority: Scan 50 most recent contacts directly
     // Matches by exact Yelp Lead ID in custom fields OR by exact full name on recent Yelp leads
     try {
       const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
@@ -246,6 +310,7 @@ export class GHLService {
         );
         if (matchedByLeadId?.id) {
           console.log(`[GHLService] Matched contact by customField/email yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
+          this.cacheContact(locId, matchedByLeadId.id, details);
           return matchedByLeadId.id;
         }
       }
@@ -258,6 +323,7 @@ export class GHLService {
         });
         if (matchedByRecentName?.id) {
           console.log(`[GHLService] Matched recent contact by exact name "${details.name}" in location ${locId} -> ${matchedByRecentName.id}`);
+          this.cacheContact(locId, matchedByRecentName.id, details);
           return matchedByRecentName.id;
         }
       }
@@ -281,6 +347,7 @@ export class GHLService {
         });
 
         if (searchRes.data?.contact?.id) {
+          this.cacheContact(locId, searchRes.data.contact.id, details);
           return searchRes.data.contact.id;
         }
       } catch (err) {
@@ -310,6 +377,7 @@ export class GHLService {
 
         if (match?.id) {
           console.log(`[GHLService] Matched contact by leadId/name "${details.leadId || details.name}" in location ${locId} -> ${match.id}`);
+          this.cacheContact(locId, match.id, details);
           return match.id;
         }
       } catch (err) {
@@ -350,6 +418,7 @@ export class GHLService {
       });
       const newContactId = createRes.data?.contact?.id;
       if (newContactId) {
+        this.cacheContact(locId, newContactId, details);
         this.triggerTagsAndWorkflow(newContactId, locId, ['source: yelp', 'yelp-lead']);
       }
       return newContactId;
@@ -357,6 +426,7 @@ export class GHLService {
       // If contact already exists in GHL, reuse matching contactId
       if (err.response?.data?.meta?.contactId) {
         console.log(`[GHLService] Contact exists (${err.response.data.meta.contactId}), reusing existing contact.`);
+        this.cacheContact(locId, err.response.data.meta.contactId, details);
         return err.response.data.meta.contactId;
       }
       throw err;
@@ -431,6 +501,40 @@ export class GHLService {
       ? { Authorization: authHeader, Version: '2021-07-28', 'Content-Type': 'application/json' }
       : this.getHeaders(locId);
 
+    // 0. Zero-latency in-memory cache check (bypasses GHL's 10-15s Elasticsearch indexing delay)
+    const cacheInfo = {
+      leadId,
+      name: payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim(),
+      email: payload.email,
+      phone: payload.phone,
+    };
+    const cachedId = this.getCachedContact(locId, cacheInfo);
+    if (cachedId) {
+      try {
+        const updateBody: Record<string, any> = {};
+        if (payload.phone) updateBody.phone = payload.phone;
+        if (payload.name) updateBody.name = payload.name;
+        if (payload.firstName) updateBody.firstName = payload.firstName;
+        if (payload.lastName) updateBody.lastName = payload.lastName;
+        if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+          updateBody.customFields = payload.customFields;
+        }
+        await axios.put(`${config.ghl.apiUrl}/contacts/${cachedId}`, updateBody, { headers });
+        if (Array.isArray(payload.tags) && payload.tags.length > 0) {
+          await axios.post(
+            `${config.ghl.apiUrl}/contacts/${cachedId}/tags`,
+            { tags: payload.tags },
+            { headers }
+          );
+        }
+        this.cacheContact(locId, cachedId, cacheInfo);
+        console.log(`[GHLService] SmartUpsert updated cached contact ${cachedId}`);
+        return cachedId;
+      } catch (e) {
+        // Fall through if cached contact update fails
+      }
+    }
+
     // 1. Try matching existing contact by Yelp Lead ID inside customFields across recent contacts
     if (leadId) {
       try {
@@ -461,6 +565,7 @@ export class GHLService {
               { headers }
             );
           }
+          this.cacheContact(locId, match.id, cacheInfo);
           console.log(`[GHLService] SmartUpsert updated existing contact ${match.id} by leadId ${leadId}`);
           return match.id;
         }
@@ -496,6 +601,7 @@ export class GHLService {
               { headers }
             );
           }
+          this.cacheContact(locId, recentUnphoned.id, cacheInfo);
           console.log(`[GHLService] SmartUpsert matched recent un-phoned Yelp contact ${recentUnphoned.id}`);
           return recentUnphoned.id;
         }
@@ -507,8 +613,11 @@ export class GHLService {
     // 3. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
     const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
     const contactId = res.data?.contact?.id;
-    if (contactId && Array.isArray(payload.tags) && payload.tags.includes('source: yelp')) {
-      this.triggerTagsAndWorkflow(contactId, locId, payload.tags);
+    if (contactId) {
+      this.cacheContact(locId, contactId, cacheInfo);
+      if (Array.isArray(payload.tags) && payload.tags.includes('source: yelp')) {
+        this.triggerTagsAndWorkflow(contactId, locId, payload.tags);
+      }
     }
     return contactId;
   }
