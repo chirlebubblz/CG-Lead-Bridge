@@ -304,9 +304,10 @@ export class GHLService {
       const recentContacts: any[] = recentRes.data?.contacts || [];
 
       if (details.leadId) {
+        const targetLeadId = details.leadId.trim().toLowerCase();
         const matchedByLeadId = recentContacts.find((c: any) =>
-          c.customFields?.some((f: any) => f.value === details.leadId) ||
-          (c.email && c.email.toLowerCase().includes(details.leadId.toLowerCase()))
+          c.customFields?.some((f: any) => typeof f.value === 'string' && f.value.trim().toLowerCase() === targetLeadId) ||
+          (c.email && c.email.toLowerCase().includes(targetLeadId))
         );
         if (matchedByLeadId?.id) {
           console.log(`[GHLService] Matched contact by customField/email yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
@@ -542,8 +543,10 @@ export class GHLService {
           params: { locationId: locId, limit: 50 },
           headers,
         });
+        const targetLeadId = leadId.trim().toLowerCase();
         const match = (queryRes.data?.contacts || []).find((c: any) =>
-          c.customFields?.some((f: any) => f.value === leadId)
+          c.customFields?.some((f: any) => typeof f.value === 'string' && f.value.trim().toLowerCase() === targetLeadId) ||
+          (c.email && c.email.toLowerCase().includes(targetLeadId))
         );
         if (match?.id) {
           const updateBody: Record<string, any> = {};
