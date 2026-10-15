@@ -317,13 +317,22 @@ export class GHLService {
       }
 
       if (details.name && details.name !== 'Yelp Customer') {
-        const targetName = details.name.trim().toLowerCase();
+        const cleanTarget = details.name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const tenMinsAgo = Date.now() - 10 * 60 * 1000;
+
         const matchedByRecentName = recentContacts.find((c: any) => {
-          const full = (c.contactName || `${c.firstName || ''} ${c.lastName || ''}`).trim().toLowerCase();
-          return full === targetName;
+          const full = (c.contactName || `${c.firstName || ''} ${c.lastName || ''}`);
+          const cleanFull = full.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const isNameMatch = cleanFull === cleanTarget && cleanTarget.length > 2;
+
+          const created = c.dateAdded ? new Date(c.dateAdded).getTime() : 0;
+          const isWithinWindow = created >= tenMinsAgo;
+
+          return isNameMatch && isWithinWindow;
         });
+
         if (matchedByRecentName?.id) {
-          console.log(`[GHLService] Matched recent contact by exact name "${details.name}" in location ${locId} -> ${matchedByRecentName.id}`);
+          console.log(`[GHLService] Matched recent contact by name & time window "${details.name}" (${matchedByRecentName.dateAdded}) in location ${locId} -> ${matchedByRecentName.id}`);
           this.cacheContact(locId, matchedByRecentName.id, details);
           return matchedByRecentName.id;
         }
@@ -571,6 +580,30 @@ export class GHLService {
           this.cacheContact(locId, match.id, cacheInfo);
           console.log(`[GHLService] SmartUpsert updated existing contact ${match.id} by leadId ${leadId}`);
           return match.id;
+        }
+
+        // Secondary check in queryRes: same normalized name created in last 10 minutes
+        const candidateName = payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim();
+        if (candidateName && candidateName.toLowerCase() !== 'yelp customer') {
+          const cleanTarget = candidateName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const tenMinsAgo = Date.now() - 10 * 60 * 1000;
+          const nameMatch = (queryRes.data?.contacts || []).find((c: any) => {
+            const full = (c.contactName || `${c.firstName || ''} ${c.lastName || ''}`);
+            const cleanFull = full.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            const created = c.dateAdded ? new Date(c.dateAdded).getTime() : 0;
+            return cleanFull === cleanTarget && cleanTarget.length > 2 && created >= tenMinsAgo;
+          });
+          if (nameMatch?.id) {
+            const updateBody: Record<string, any> = {};
+            if (payload.phone) updateBody.phone = payload.phone;
+            if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+              updateBody.customFields = payload.customFields;
+            }
+            await axios.put(`${config.ghl.apiUrl}/contacts/${nameMatch.id}`, updateBody, { headers });
+            this.cacheContact(locId, nameMatch.id, cacheInfo);
+            console.log(`[GHLService] SmartUpsert matched recent contact ${nameMatch.id} by name & time window "${candidateName}"`);
+            return nameMatch.id;
+          }
         }
       } catch (e) {
         // Fall through to next tier
