@@ -337,6 +337,38 @@ export class GHLService {
           return matchedByRecentName.id;
         }
       }
+
+      // Check 3: Customer notes/request or questionnaire fingerprint matching (created within last 30 minutes)
+      const incomingNotesField = details.customFields?.find((f: any) =>
+        f.key === 'yelp_notes__customer_request' || f.id === 'DgCDxzJcWvEs7qjpxzbg'
+      );
+      const incomingNotes = incomingNotesField?.value;
+      if (incomingNotes && typeof incomingNotes === 'string' && incomingNotes.length > 20) {
+        const cleanIncoming = incomingNotes.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+
+        const matchedByNotes = recentContacts.find((c: any) => {
+          const created = c.dateAdded ? new Date(c.dateAdded).getTime() : 0;
+          if (created < thirtyMinsAgo) return false;
+
+          const existingNoteField = c.customFields?.find((f: any) =>
+            f.id === 'DgCDxzJcWvEs7qjpxzbg' || (typeof f.value === 'string' && f.value.length > 20)
+          );
+          if (!existingNoteField?.value || typeof existingNoteField.value !== 'string') return false;
+
+          const cleanExisting = existingNoteField.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          return (
+            (cleanExisting.includes(cleanIncoming) || cleanIncoming.includes(cleanExisting)) &&
+            Math.min(cleanExisting.length, cleanIncoming.length) > 25
+          );
+        });
+
+        if (matchedByNotes?.id) {
+          console.log(`[GHLService] Matched recent contact by customer request notes fingerprint in location ${locId} -> ${matchedByNotes.id}`);
+          this.cacheContact(locId, matchedByNotes.id, details);
+          return matchedByNotes.id;
+        }
+      }
     } catch (err) {
       // Continue to next tier
     }
@@ -603,6 +635,40 @@ export class GHLService {
             this.cacheContact(locId, nameMatch.id, cacheInfo);
             console.log(`[GHLService] SmartUpsert matched recent contact ${nameMatch.id} by name & time window "${candidateName}"`);
             return nameMatch.id;
+          }
+        }
+
+        // Tertiary check in queryRes: same customer request notes / questionnaire fingerprint
+        const incomingNotesField = Array.isArray(payload.customFields)
+          ? payload.customFields.find((f: any) => f.key === 'yelp_notes__customer_request' || f.id === 'DgCDxzJcWvEs7qjpxzbg')
+          : undefined;
+        const incomingNotes = incomingNotesField?.value;
+        if (incomingNotes && typeof incomingNotes === 'string' && incomingNotes.length > 20) {
+          const cleanIncoming = incomingNotes.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+          const notesMatch = (queryRes.data?.contacts || []).find((c: any) => {
+            const created = c.dateAdded ? new Date(c.dateAdded).getTime() : 0;
+            if (created < thirtyMinsAgo) return false;
+            const existingNote = c.customFields?.find((f: any) =>
+              f.id === 'DgCDxzJcWvEs7qjpxzbg' || (typeof f.value === 'string' && f.value.length > 20)
+            );
+            if (!existingNote?.value || typeof existingNote.value !== 'string') return false;
+            const cleanExisting = existingNote.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return (
+              (cleanExisting.includes(cleanIncoming) || cleanIncoming.includes(cleanExisting)) &&
+              Math.min(cleanExisting.length, cleanIncoming.length) > 25
+            );
+          });
+          if (notesMatch?.id) {
+            const updateBody: Record<string, any> = {};
+            if (payload.phone) updateBody.phone = payload.phone;
+            if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+              updateBody.customFields = payload.customFields;
+            }
+            await axios.put(`${config.ghl.apiUrl}/contacts/${notesMatch.id}`, updateBody, { headers });
+            this.cacheContact(locId, notesMatch.id, cacheInfo);
+            console.log(`[GHLService] SmartUpsert matched recent contact ${notesMatch.id} by notes fingerprint`);
+            return notesMatch.id;
           }
         }
       } catch (e) {
