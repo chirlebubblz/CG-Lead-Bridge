@@ -28,6 +28,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   'YVtPYdLotWLwuy5AA8Vv': 'pit-f62d319a-797d-437d-bc0c-90a55d4a3dcf',
   // Ya'll Maid Austin
   '19jBWYeRsrzDq6Oe1nth': 'pit-57efb428-1952-48f1-b70b-47f681941579',
+  // Rapids Cleaning Services
+  '8duUHE4ENvhQTCtg3z6o': 'pit-us-19731ed6-4097-48e4-89aa-934c295b91d0',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -70,6 +72,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   '19jBWYeRsrzDq6Oe1nth': {
     pipelineId: 'xxJiHoWuxh6cQUEh2aSW',
     stageId: '39091e9f-d5a9-4d11-9929-b9ef12138c1a', // New Lead
+  },
+  // Rapids Cleaning Services
+  '8duUHE4ENvhQTCtg3z6o': {
+    pipelineId: 'bHG1epKxLmE812KHzc78',
+    stageId: 'b7c17a87-4ba9-4fb2-b73e-a4b63e308d42', // New Leads
   },
 };
 
