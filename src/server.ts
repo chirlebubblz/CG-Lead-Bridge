@@ -393,6 +393,39 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }
 
+    // Helper to sanitize custom field values (unpacks Yelp JSON objects / stringified JSON)
+    const sanitizeCustomFieldValue = (v: any): string => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'object') {
+        if (v.customer_request) return String(v.customer_request);
+        if (v.text) return String(v.text);
+        if (v.value) return String(v.value);
+        if (v.notes) return String(v.notes);
+        try {
+          return Object.values(v).map(x => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join('; ');
+        } catch (e) {
+          return JSON.stringify(v);
+        }
+      }
+      if (typeof v === 'string') {
+        const trimmed = v.trim();
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed.customer_request) return String(parsed.customer_request);
+            if (parsed.text) return String(parsed.text);
+            if (parsed.value) return String(parsed.value);
+            if (parsed.notes) return String(parsed.notes);
+            return Object.values(parsed).map(x => (typeof x === 'object' ? JSON.stringify(x) : String(x))).join('; ');
+          } catch (e) {
+            return v;
+          }
+        }
+        return v;
+      }
+      return String(v);
+    };
+
     // Auto-bundle flat custom fields (e.g. yelp_service_type, yelp_bedrooms, etc.)
     if (!Array.isArray(payload.customFields)) {
       payload.customFields = [];
@@ -411,7 +444,7 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
 
     for (const key of flatKeys) {
       if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') {
-        const val = payload[key];
+        const val = sanitizeCustomFieldValue(payload[key]);
         const ghlKey = key === 'yelp_notes' ? 'yelp_notes__customer_request' : key;
         if (!payload.customFields.some((f: any) => f.key === ghlKey || f.key === `contact.${ghlKey}`)) {
           payload.customFields.push({
@@ -422,6 +455,12 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
         delete payload[key];
       }
     }
+
+    // Clean any customFields already passed in array format
+    payload.customFields = payload.customFields.map((f: any) => ({
+      ...f,
+      value: sanitizeCustomFieldValue(f.value),
+    }));
 
     const contactId = await GHLService.smartUpsertContact(payload, leadId, req.headers.authorization);
     res.status(200).json({
