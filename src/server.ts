@@ -247,6 +247,13 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         }
       }
 
+      // If this is a brand new quote arriving via email, wait 12s so Zap 1 (Yelp Leads API)
+      // finishes creating the contact and GHL completes its background Elasticsearch indexing.
+      if (isNewQuote) {
+        addLog(`[Yelp Webhook] Buffering 12s for initial quote (${name}) to allow Zapier intake & GHL indexing...`);
+        await new Promise(resolve => setTimeout(resolve, 12000));
+      }
+
       const contactId = await GHLService.findOrCreateContact({
         name,
         email,
