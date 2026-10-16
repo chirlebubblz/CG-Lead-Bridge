@@ -546,8 +546,8 @@ export class GHLService {
     authHeader?: string
   ): Promise<string> {
     const locId = payload.locationId || config.ghl.locationId;
-    const headers = authHeader
-      ? { Authorization: authHeader, Version: '2021-07-28', 'Content-Type': 'application/json' }
+    const headers = (authHeader && !KNOWN_TOKENS[locId])
+      ? { Authorization: authHeader.startsWith('Bearer ') ? authHeader : `Bearer ${authHeader}`, Version: '2021-07-28', 'Content-Type': 'application/json' }
       : this.getHeaders(locId);
 
     // 0. Zero-latency in-memory cache check (bypasses GHL's 10-15s Elasticsearch indexing delay)

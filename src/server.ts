@@ -426,26 +426,29 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       return String(v);
     };
 
+    // Normalize keys (e.g. yelp-phone-captured -> yelp_phone_captured)
+    for (const key of Object.keys(payload)) {
+      if (key.includes('-') && !['dnd-settings', 'inbound-dnd-settings'].includes(key)) {
+        const normalizedKey = key.replace(/-/g, '_');
+        if (payload[normalizedKey] === undefined) {
+          payload[normalizedKey] = payload[key];
+        }
+        delete payload[key];
+      }
+    }
+
     // Auto-bundle flat custom fields (e.g. yelp_service_type, yelp_bedrooms, etc.)
     if (!Array.isArray(payload.customFields)) {
       payload.customFields = [];
     }
 
-    const flatKeys = [
-      'yelp_service_type',
-      'yelp_bedrooms',
-      'yelp_bathrooms',
-      'yelp_cleaning_frequency',
-      'yelp_notes__customer_request',
-      'yelp_notes',
-      'yelp_lead_id',
-      'yelp_phone_captured'
-    ];
-
-    for (const key of flatKeys) {
-      if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') {
+    // Capture any property that starts with yelp_ or ends with notes/request
+    for (const key of Object.keys(payload)) {
+      if (key.startsWith('yelp_') || key === 'notes' || key === 'customer_request') {
         const val = sanitizeCustomFieldValue(payload[key]);
-        const ghlKey = key === 'yelp_notes' ? 'yelp_notes__customer_request' : key;
+        const ghlKey = (key === 'yelp_notes' || key === 'notes' || key === 'customer_request') 
+          ? 'yelp_notes__customer_request' 
+          : key;
         if (!payload.customFields.some((f: any) => f.key === ghlKey || f.key === `contact.${ghlKey}`)) {
           payload.customFields.push({
             key: ghlKey,
@@ -462,7 +465,21 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       value: sanitizeCustomFieldValue(f.value),
     }));
 
-    const contactId = await GHLService.smartUpsertContact(payload, leadId, req.headers.authorization);
+    // Strictly strip any non-standard root contact properties so GHL validator never rejects with "property X should not exist"
+    const ALLOWED_GHL_CONTACT_FIELDS = new Set([
+      'name', 'firstName', 'lastName', 'email', 'phone', 'locationId',
+      'gender', 'address1', 'city', 'state', 'postalCode', 'website',
+      'timezone', 'dnd', 'dndSettings', 'inboundDndSettings', 'tags',
+      'customFields', 'source', 'type', 'companyName'
+    ]);
+
+    for (const key of Object.keys(payload)) {
+      if (!ALLOWED_GHL_CONTACT_FIELDS.has(key)) {
+        delete payload[key];
+      }
+    }
+
+    const contactId = await GHLService.smartUpsertContact(payload, leadId);
     res.status(200).json({
       success: true,
       contact: { id: contactId },
