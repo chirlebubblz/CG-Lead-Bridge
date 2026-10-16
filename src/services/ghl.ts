@@ -276,6 +276,109 @@ export class GHLService {
         }
       }
     }, 2500);
+
+    // Schedule automated duplicate reconciliation 15s after intake
+    // Once GHL Elasticsearch indexing finishes, checks if a twin duplicate exists and auto-merges
+    setTimeout(async () => {
+      try {
+        await GHLService.reconcileDuplicatesForLead(contactId, locationId);
+      } catch (e: any) {
+        console.warn(`[GHLService] Post-intake duplicate reconciliation note for ${contactId}:`, e.message);
+      }
+    }, 15000);
+  }
+
+  /**
+   * Automated Post-Intake Duplicate Reconciler
+   * Checks if an identical contact was created during the race condition window
+   * and cleanly deletes the duplicate contact and opportunity.
+   */
+  public static async reconcileDuplicatesForLead(primaryContactId: string, locationId: string): Promise<void> {
+    const headers = this.getHeaders(locationId);
+    try {
+      const contact = await this.getContact(primaryContactId, locationId);
+      if (!contact) return;
+
+      const leadIdField = (contact.customFields || []).find((f: any) =>
+        f.key === 'yelp_lead_id' || f.key === 'contact.yelp_lead_id' || (typeof f.value === 'string' && f.value.length > 15 && !f.value.includes(' '))
+      );
+      const leadId = (leadIdField?.value || '').trim().toLowerCase();
+      const rawName = (contact.contactName || `${contact.firstName || ''} ${contact.lastName || ''}`).trim();
+      const cleanName = rawName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+      // Scan 25 most recent contacts
+      const res = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
+        params: { locationId, limit: 25 },
+        headers,
+      });
+      const recentContacts: any[] = res.data?.contacts || [];
+
+      // Find twin duplicate created within 10 minutes of this contact
+      const primaryCreated = new Date(contact.dateAdded).getTime();
+      const duplicates = recentContacts.filter((c: any) => {
+        if (c.id === primaryContactId) return false;
+        const otherCreated = new Date(c.dateAdded).getTime();
+        const diffMinutes = Math.abs(otherCreated - primaryCreated) / (60 * 1000);
+        if (diffMinutes > 10) return false;
+
+        const otherLeadField = (c.customFields || []).find((f: any) =>
+          f.key === 'yelp_lead_id' || f.key === 'contact.yelp_lead_id' || (typeof f.value === 'string' && f.value.length > 15 && !f.value.includes(' '))
+        );
+        const otherLeadId = (otherLeadField?.value || '').trim().toLowerCase();
+        const otherCleanName = (c.contactName || `${c.firstName || ''} ${c.lastName || ''}`).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+        const matchLeadId = leadId && otherLeadId && (leadId === otherLeadId || c.email?.toLowerCase().includes(leadId));
+        const matchName = cleanName && otherCleanName && cleanName === otherCleanName && cleanName.length > 2;
+
+        return matchLeadId || matchName;
+      });
+
+      if (duplicates.length === 0) return;
+
+      console.log(`[Auto-Reconcile] Detected ${duplicates.length} twin duplicate(s) for ${rawName} (${primaryContactId}) in loc ${locationId}`);
+
+      for (const dup of duplicates) {
+        // Decide which contact to keep: check if other contact has more human messages
+        try {
+          const dupConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${dup.id}`, { headers });
+          const primaryConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${primaryContactId}`, { headers });
+          const dupConv = dupConvRes.data?.conversations?.[0];
+          const primaryConv = primaryConvRes.data?.conversations?.[0];
+
+          let dupMsgsCount = 0;
+          let primaryMsgsCount = 0;
+          if (dupConv?.id) {
+            const m = await axios.get(`${config.ghl.apiUrl}/conversations/${dupConv.id}/messages`, { headers });
+            dupMsgsCount = m.data?.messages?.messages?.length || 0;
+          }
+          if (primaryConv?.id) {
+            const m = await axios.get(`${config.ghl.apiUrl}/conversations/${primaryConv.id}/messages`, { headers });
+            primaryMsgsCount = m.data?.messages?.messages?.length || 0;
+          }
+
+          let discardId = dup.id;
+          if (dupMsgsCount > primaryMsgsCount) {
+            discardId = primaryContactId;
+            console.log(`[Auto-Reconcile] Duplicate ${dup.id} has more messages (${dupMsgsCount} vs ${primaryMsgsCount}), swapping discard target to ${primaryContactId}`);
+          }
+
+          // Delete duplicate opportunity
+          const oppRes = await axios.get(`${config.ghl.apiUrl}/opportunities/search?location_id=${locationId}&contact_id=${discardId}`, { headers });
+          for (const opp of oppRes.data?.opportunities || []) {
+            await axios.delete(`${config.ghl.apiUrl}/opportunities/${opp.id}`, { headers });
+            console.log(`[Auto-Reconcile] Removed duplicate opportunity ${opp.id} for contact ${discardId}`);
+          }
+
+          // Delete duplicate contact card
+          await axios.delete(`${config.ghl.apiUrl}/contacts/${discardId}`, { headers });
+          console.log(`[Auto-Reconcile] ✅ Successfully removed twin duplicate contact ${discardId}`);
+        } catch (err: any) {
+          console.warn(`[Auto-Reconcile] Failed to clean duplicate contact ${dup.id}:`, err.message);
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[Auto-Reconcile] Error during lead duplicate reconciliation:`, e.message);
+    }
   }
 
   /**

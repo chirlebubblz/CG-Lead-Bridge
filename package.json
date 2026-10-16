@@ -8,7 +8,9 @@
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
     "setup:ghl": "ts-node scripts/setup-ghl-account.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dedup:audit": "ts-node scripts/dedup-audit.ts --dry-run",
+    "dedup:clean": "ts-node scripts/dedup-audit.ts"
   },
   "keywords": [
     "gohighlevel",
