@@ -388,6 +388,41 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       if (leadField?.value) leadId = leadField.value;
     }
 
+    // Normalize tags if passed as a comma-separated string from Zapier
+    if (typeof payload.tags === 'string') {
+      payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+
+    // Auto-bundle flat custom fields (e.g. yelp_service_type, yelp_bedrooms, etc.)
+    if (!Array.isArray(payload.customFields)) {
+      payload.customFields = [];
+    }
+
+    const flatKeys = [
+      'yelp_service_type',
+      'yelp_bedrooms',
+      'yelp_bathrooms',
+      'yelp_cleaning_frequency',
+      'yelp_notes__customer_request',
+      'yelp_notes',
+      'yelp_lead_id',
+      'yelp_phone_captured'
+    ];
+
+    for (const key of flatKeys) {
+      if (payload[key] !== undefined && payload[key] !== null && payload[key] !== '') {
+        const val = payload[key];
+        const ghlKey = key === 'yelp_notes' ? 'yelp_notes__customer_request' : key;
+        if (!payload.customFields.some((f: any) => f.key === ghlKey || f.key === `contact.${ghlKey}`)) {
+          payload.customFields.push({
+            key: ghlKey,
+            value: val,
+          });
+        }
+        delete payload[key];
+      }
+    }
+
     const contactId = await GHLService.smartUpsertContact(payload, leadId, req.headers.authorization);
     res.status(200).json({
       success: true,

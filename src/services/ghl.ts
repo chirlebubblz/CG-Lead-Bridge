@@ -724,8 +724,13 @@ export class GHLService {
     const contactId = res.data?.contact?.id;
     if (contactId) {
       this.cacheContact(locId, contactId, cacheInfo);
-      if (Array.isArray(payload.tags) && payload.tags.includes('source: yelp')) {
+      if (Array.isArray(payload.tags) && (payload.tags.includes('source: yelp') || payload.tags.includes('yelp-lead'))) {
         this.triggerTagsAndWorkflow(contactId, locId, payload.tags);
+        this.createOpportunity({
+          contactId,
+          name: payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || 'Yelp Customer',
+          locationId: locId,
+        }).catch(e => console.warn('[GHLService] Auto opp creation note:', e.message));
       }
     }
     return contactId;
