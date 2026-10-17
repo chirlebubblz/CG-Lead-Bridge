@@ -97,6 +97,8 @@ const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
   'YVtPYdLotWLwuy5AA8Vv': 'c3be0b24-5bc7-4ff1-ad57-9dc6aeaf0467',
   // Ya'll Maid Austin
   '19jBWYeRsrzDq6Oe1nth': 'b57e3d68-e8ef-4af4-adcc-edfc88b0017b',
+  // Rapids Cleaning Services
+  '8duUHE4ENvhQTCtg3z6o': '42a1058e-0dbf-4dc8-bed5-d88e9d442d47',
 };
 
 export class GHLService {
