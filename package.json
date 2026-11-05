@@ -1,6 +1,6 @@
 {
   "name": "cleangenie-lead-bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Two-way conversation bridge connecting Yelp Leads (and Thumbtack) to GoHighLevel Conversations",
   "main": "dist/server.js",
   "scripts": {
