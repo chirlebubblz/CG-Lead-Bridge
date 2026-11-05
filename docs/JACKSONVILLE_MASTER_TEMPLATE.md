@@ -145,7 +145,7 @@ In the client's business Gmail receiving Yelp alerts:
 ## 5. Middleware Server Shielding (`src/server.ts`)
 When adding new business email domains, append them to the blacklist guardrail in `src/server.ts` so owner/forwarder emails are never ingested as leads:
 ```typescript
-if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('capableclean') || email.includes('ascendcleaning'))) {
+if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('yallmaid'))) {
   email = undefined;
 }
 ```

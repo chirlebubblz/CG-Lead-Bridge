@@ -116,7 +116,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         { pattern: /ascend\s*cleaning/i, locationId: 'IdJoWa68hD3nVj45Fv7f', name: 'Ascend Cleaning' },
         { pattern: /sparkle\s*squad/i, locationId: 'ThUMNqsKmDfYKMF0jsBb', name: 'The Sparkle Squad Co' },
         { pattern: /sunny\s*side\s*clean/i, locationId: 'WOwi6fpdaZavuqHU8Rux', name: 'Sunny Side Clean Team' },
-        { pattern: /ya'?ll\s*maid/i, locationId: '19jBWYeRsrzDq6Oe1nth', name: "Ya'll Maid Austin" },
+        { pattern: /(?:ya'?ll|y'?all)\s*maid/i, locationId: '19jBWYeRsrzDq6Oe1nth', name: "Ya'll Maid Austin" },
         { pattern: /rapids\s*cleaning/i, locationId: '8duUHE4ENvhQTCtg3z6o', name: 'Rapids Cleaning Services' },
       ];
 
@@ -174,7 +174,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices'))) {
         email = undefined;
       }
       if (!email && leadId) {

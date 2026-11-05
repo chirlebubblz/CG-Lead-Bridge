@@ -42,3 +42,16 @@ describe('Thumbtack Adapter', () => {
     expect(parsed.phone).toBe('+13125550199');
   });
 });
+
+describe('Brand Detection - Ya\'ll Maid Austin', () => {
+  const pattern = /(?:ya'?ll|y'?all)\s*maid/i;
+
+  it('should match Ya\'ll Maid, Y\'all Maid, and Yall Maid variants', () => {
+    expect(pattern.test("Ya'll Maid")).toBe(true);
+    expect(pattern.test("Y'all Maid")).toBe(true);
+    expect(pattern.test("Yall Maid")).toBe(true);
+    expect(pattern.test("New lead from John for Y'all Maid Austin")).toBe(true);
+    expect(pattern.test("Y'all Maid Austin Cleaning Service")).toBe(true);
+    expect(pattern.test("Ya'll Maid Austin Cleaning Service")).toBe(true);
+  });
+});
