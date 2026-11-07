@@ -100,6 +100,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
     addLog('[Yelp Webhook] Received webhook POST', body);
 
     let locationId = body?.location_id || body?.locationId || body?.location || config.ghl.locationId;
+    if (locationId === 'EKXbBmGEV6hnLQFQRPc') {
+      locationId = 'EKXbBmGEV6hnLQFQRPc7';
+    }
 
     // 1. Direct Zapier payload format (contains actual message, name, email, phone)
     const directMessage = body?.message || body?.text || body?.body;
@@ -340,8 +343,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         console.log(`[Yelp Webhook] Successfully ingested message from Yelp into GHL contact ${contactId}`);
       }
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('[Yelp Webhook Error]', err);
+    addLog('[Yelp Webhook Error]', { error: err?.response?.data || err?.message || String(err) });
   }
 });
 

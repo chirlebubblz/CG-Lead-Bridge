@@ -14,6 +14,7 @@ export interface GHLInboundPayload {
 const KNOWN_TOKENS: Record<string, string> = {
   // Jacksonville Cleaning Co
   'EKXbBmGEV6hnLQFQRPc7': 'pit-b26f30e8-7d61-4c6f-b925-2ed84ececcc0',
+  'EKXbBmGEV6hnLQFQRPc': 'pit-b26f30e8-7d61-4c6f-b925-2ed84ececcc0',
   // Capable Clean
   's94e80clit6bCL9VBWgl': 'pit-5cd3741b-9fde-4039-91da-c869573e74ce',
   // Ascend Cleaning
