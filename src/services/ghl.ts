@@ -210,6 +210,7 @@ export class GHLService {
       const res = await axios.get(searchUrl, {
         params,
         headers: reqHeaders,
+        timeout: 10000,
       });
 
       return res.data?.contact || null;
@@ -226,13 +227,15 @@ export class GHLService {
     if (!payload || typeof payload !== 'object') return false;
 
     // 1. Tags check (string or array)
-    const tags = Array.isArray(payload.tags)
+    const rawTags = Array.isArray(payload.tags)
       ? payload.tags
       : typeof payload.tags === 'string'
-        ? payload.tags.split(',').map((t: string) => t.trim().toLowerCase())
+        ? payload.tags.split(',')
         : [];
-    const hasPhoneTag = tags.some((t: string) => {
-      const norm = t.toLowerCase().replace(/[-_]/g, '');
+    const normalizedTags = rawTags.map((t: any) => String(t).trim().toLowerCase());
+
+    const hasPhoneTag = normalizedTags.some((t: string) => {
+      const norm = t.replace(/[-_]/g, '');
       return norm === 'yelpphonecaptured' || norm === 'phonecaptured' || norm === 'yelpphoneavailability';
     });
     if (hasPhoneTag) return true;
@@ -261,6 +264,18 @@ export class GHLService {
       return true;
     }
 
+    // 4. Phone present + No real name + Not a full lead intake (no 'source: yelp' or 'yelp-lead' in tags)
+    const hasPhone = Boolean(payload.phone && String(payload.phone).trim());
+    if (hasPhone && this.hasNoRealName(payload)) {
+      const hasIntakeTag = normalizedTags.some((t: string) => {
+        const norm = t.replace(/[\s-_:]/g, '');
+        return norm === 'sourceyelp' || norm === 'yelplead';
+      });
+      if (!hasIntakeTag) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -281,7 +296,7 @@ export class GHLService {
   public static async getContact(contactId: string, locationId?: string): Promise<any> {
     const locId = locationId || config.ghl.locationId;
     const url = `${config.ghl.apiUrl}/contacts/${contactId}`;
-    const res = await axios.get(url, { headers: this.getHeaders(locId) });
+    const res = await axios.get(url, { headers: this.getHeaders(locId), timeout: 10000 });
     return res.data?.contact || null;
   }
 
@@ -310,6 +325,7 @@ export class GHLService {
         };
         const res = await axios.post(url, body, {
           headers: { ...this.getHeaders(locId), Version: '2021-04-15' },
+          timeout: 10000,
         });
         return res.data;
       } catch (err: any) {
@@ -327,6 +343,7 @@ export class GHLService {
 
     const res = await axios.post(url, fallbackBody, {
       headers: { ...this.getHeaders(locId), Version: '2021-04-15' },
+      timeout: 10000,
     });
 
     return res.data;
@@ -498,6 +515,7 @@ export class GHLService {
       const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
         params: { locationId: locId, limit: 50 },
         headers,
+        timeout: 10000,
       });
       const recentContacts: any[] = recentRes.data?.contacts || [];
 
@@ -590,6 +608,7 @@ export class GHLService {
             query: queryTerm,
           },
           headers,
+          timeout: 10000,
         });
         const match = queryRes.data?.contacts?.find((c: any) => {
           const hasMatchingLeadId = details.leadId && c.customFields?.some((f: any) => f.value === details.leadId);
@@ -647,6 +666,7 @@ export class GHLService {
     try {
       const createRes = await axios.post(createUrl, createPayload, {
         headers,
+        timeout: 10000,
       });
       const newContactId = createRes.data?.contact?.id;
       if (newContactId) {
@@ -689,6 +709,7 @@ export class GHLService {
           contact_id: params.contactId,
         },
         headers: this.getHeaders(locId),
+        timeout: 10000,
       });
 
       const existingOpp = searchRes.data?.opportunities?.find(
@@ -709,6 +730,7 @@ export class GHLService {
         contactId: params.contactId,
       }, {
         headers: this.getHeaders(locId),
+        timeout: 10000,
       });
 
       const oppId = res.data?.opportunity?.id;
@@ -751,12 +773,12 @@ export class GHLService {
         if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
           updateBody.customFields = payload.customFields;
         }
-        await axios.put(`${config.ghl.apiUrl}/contacts/${cachedId}`, updateBody, { headers });
+        await axios.put(`${config.ghl.apiUrl}/contacts/${cachedId}`, updateBody, { headers, timeout: 10000 });
         if (Array.isArray(payload.tags) && payload.tags.length > 0) {
           await axios.post(
             `${config.ghl.apiUrl}/contacts/${cachedId}/tags`,
             { tags: payload.tags },
-            { headers }
+            { headers, timeout: 10000 }
           );
         }
         this.cacheContact(locId, cachedId, cacheInfo);
@@ -773,6 +795,7 @@ export class GHLService {
         const queryRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: { locationId: locId, limit: 50 },
           headers,
+          timeout: 10000,
         });
         const targetLeadId = leadId.trim().toLowerCase();
         const match = (queryRes.data?.contacts || []).find((c: any) =>
@@ -790,13 +813,13 @@ export class GHLService {
             updateBody.customFields = payload.customFields;
           }
 
-          await axios.put(`${config.ghl.apiUrl}/contacts/${match.id}`, updateBody, { headers });
+          await axios.put(`${config.ghl.apiUrl}/contacts/${match.id}`, updateBody, { headers, timeout: 10000 });
 
           if (Array.isArray(payload.tags) && payload.tags.length > 0) {
             await axios.post(
               `${config.ghl.apiUrl}/contacts/${match.id}/tags`,
               { tags: payload.tags },
-              { headers }
+              { headers, timeout: 10000 }
             );
           }
           this.cacheContact(locId, match.id, cacheInfo);
@@ -821,7 +844,7 @@ export class GHLService {
             if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
               updateBody.customFields = payload.customFields;
             }
-            await axios.put(`${config.ghl.apiUrl}/contacts/${nameMatch.id}`, updateBody, { headers });
+            await axios.put(`${config.ghl.apiUrl}/contacts/${nameMatch.id}`, updateBody, { headers, timeout: 10000 });
             this.cacheContact(locId, nameMatch.id, cacheInfo);
             console.log(`[GHLService] SmartUpsert matched recent contact ${nameMatch.id} by name & time window "${candidateName}"`);
             return nameMatch.id;
@@ -855,7 +878,7 @@ export class GHLService {
             if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
               updateBody.customFields = payload.customFields;
             }
-            await axios.put(`${config.ghl.apiUrl}/contacts/${notesMatch.id}`, updateBody, { headers });
+            await axios.put(`${config.ghl.apiUrl}/contacts/${notesMatch.id}`, updateBody, { headers, timeout: 10000 });
             this.cacheContact(locId, notesMatch.id, cacheInfo);
             console.log(`[GHLService] SmartUpsert matched recent contact ${notesMatch.id} by notes fingerprint`);
             return notesMatch.id;
@@ -873,6 +896,7 @@ export class GHLService {
         const recentRes = await axios.get(`${config.ghl.apiUrl}/contacts/`, {
           params: { locationId: locId, query: 'leadsapi', limit: 10 },
           headers,
+          timeout: 10000,
         });
         const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
         const recentUnphoned = (recentRes.data?.contacts || []).find((c: any) => {
@@ -885,12 +909,12 @@ export class GHLService {
           if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
             updateBody.customFields = payload.customFields;
           }
-          await axios.put(`${config.ghl.apiUrl}/contacts/${recentUnphoned.id}`, updateBody, { headers });
+          await axios.put(`${config.ghl.apiUrl}/contacts/${recentUnphoned.id}`, updateBody, { headers, timeout: 10000 });
           if (Array.isArray(payload.tags) && payload.tags.length > 0) {
             await axios.post(
               `${config.ghl.apiUrl}/contacts/${recentUnphoned.id}/tags`,
               { tags: payload.tags },
-              { headers }
+              { headers, timeout: 10000 }
             );
           }
           this.cacheContact(locId, recentUnphoned.id, cacheInfo);
@@ -923,12 +947,12 @@ export class GHLService {
         updateBody.customFields = payload.customFields;
       }
 
-      await axios.put(`${config.ghl.apiUrl}/contacts/${matchedId}`, updateBody, { headers });
+      await axios.put(`${config.ghl.apiUrl}/contacts/${matchedId}`, updateBody, { headers, timeout: 10000 });
       if (Array.isArray(payload.tags) && payload.tags.length > 0) {
         await axios.post(
           `${config.ghl.apiUrl}/contacts/${matchedId}/tags`,
           { tags: payload.tags },
-          { headers }
+          { headers, timeout: 10000 }
         );
       }
       this.cacheContact(locId, matchedId, cacheInfo);
@@ -948,7 +972,7 @@ export class GHLService {
     }
 
     // 5. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
-    const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
+    const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers, timeout: 10000 });
     const contactId = res.data?.contact?.id;
     if (contactId) {
       this.cacheContact(locId, contactId, cacheInfo);

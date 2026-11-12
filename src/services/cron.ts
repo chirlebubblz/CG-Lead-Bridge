@@ -1,4 +1,5 @@
 import cron from 'node-cron';
+import axios from 'axios';
 import { YelpService } from './yelp';
 import { TokenStore } from './token-store';
 import { config } from '../config';
@@ -8,12 +9,33 @@ export class CronService {
    * Initializes scheduled tasks
    */
   public static init() {
-    console.log('[CronService] Initializing 12-day Yelp Webhook Auto-Renewal Engine...');
+    console.log('[CronService] Initializing 12-day Yelp Webhook Auto-Renewal Engine & Keep-Alive Pinger...');
 
     // Run every day at 03:00 AM to check if webhook expiration is within 48 hours
     cron.schedule('0 3 * * *', async () => {
       await this.checkAndRenewWebhook();
     });
+
+    // Run every 10 minutes to ping Render health endpoint and prevent cold-start sleeps
+    cron.schedule('*/10 * * * *', async () => {
+      await this.pingKeepAlive();
+    });
+  }
+
+  /**
+   * Keep-alive ping to ensure Render instance stays awake and never cold-starts
+   */
+  public static async pingKeepAlive() {
+    const healthUrl = config.baseUrl?.startsWith('http') && !config.baseUrl.includes('localhost')
+      ? `${config.baseUrl.replace(/\/+$/, '')}/health`
+      : 'https://cg-lead-bridge.onrender.com/health';
+
+    try {
+      const res = await axios.get(healthUrl, { timeout: 8000 });
+      console.log(`[CronService] Keep-alive self-ping OK (${res.status}) -> ${healthUrl}`);
+    } catch (err: any) {
+      console.warn(`[CronService] Keep-alive self-ping note:`, err.message);
+    }
   }
 
   /**

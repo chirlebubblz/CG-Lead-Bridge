@@ -33,6 +33,21 @@ describe('Orphan Contact Guardrail Unit Tests', () => {
       expect(GHLService.isPhoneAvailabilityPayload({ eventType: 'phone_availability' })).toBe(true);
     });
 
+    it('should identify minimal Zap 2 payload with only locationId, email, and phone as phone availability', () => {
+      expect(GHLService.isPhoneAvailabilityPayload({
+        locationId: '8duUHE4ENvhQTCtg3z6o',
+        email: 'leadsapi+ee7e11b266a341edbdf769841d6045af@messaging.yelp.com',
+        phone: '+19492827218'
+      })).toBe(true);
+    });
+
+    it('should return false for payload with phone and no name if it has full intake tags', () => {
+      expect(GHLService.isPhoneAvailabilityPayload({
+        phone: '+19492827218',
+        tags: ['source: yelp', 'yelp-lead']
+      })).toBe(false);
+    });
+
     it('should return false for regular lead intake payloads', () => {
       expect(GHLService.isPhoneAvailabilityPayload({
         name: 'Jane Doe',
@@ -89,6 +104,35 @@ describe('Orphan Contact Guardrail Unit Tests', () => {
       // Verify guardrail warning log was emitted
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[Guardrail Blocked] Prevented orphan contact creation for leadsapi+orphan123@messaging.yelp.com in location s94e80clit6bCL9VBWgl')
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('should block orphan contact creation for minimal Zap 2 payload without explicit tags when no contact exists', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock duplicate search and recent contacts scan to return no contact
+      mockedAxios.get.mockResolvedValue({ data: { contact: null, contacts: [] } });
+
+      const payload = {
+        locationId: '8duUHE4ENvhQTCtg3z6o',
+        email: 'leadsapi+ee7e11b266a341edbdf769841d6045af@messaging.yelp.com',
+        phone: '+19492827218'
+      };
+
+      const result = await GHLService.smartUpsertContact(payload);
+
+      expect(result).toBeNull();
+      // Verify axios.post to /contacts/upsert was NOT called
+      const upsertPostCalls = mockedAxios.post.mock.calls.filter(call =>
+        typeof call[0] === 'string' && call[0].includes('/contacts/upsert')
+      );
+      expect(upsertPostCalls.length).toBe(0);
+
+      // Verify guardrail warning log was emitted
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[Guardrail Blocked] Prevented orphan contact creation for leadsapi+ee7e11b266a341edbdf769841d6045af@messaging.yelp.com in location 8duUHE4ENvhQTCtg3z6o')
       );
 
       warnSpy.mockRestore();
