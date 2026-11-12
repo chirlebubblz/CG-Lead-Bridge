@@ -268,6 +268,11 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         customFields,
       });
 
+      if (!contactId) {
+        addLog(`[Yelp Webhook] Skipped processing: no valid contact created/found for ${name} (loc: ${locationId})`);
+        return;
+      }
+
       // If this is a new quote, create an opportunity in the location's dedicated Yelp pipeline
       if (isNewQuote) {
         await GHLService.createOpportunity({
@@ -358,8 +363,28 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
 app.post('/contacts/upsert', async (req: Request, res: Response) => {
   try {
     const payload = { ...(req.body || {}) };
-    const locationId = payload.locationId || config.ghl.locationId;
+    let locationId = payload.locationId || payload.location_id || config.ghl.locationId;
+    if (locationId === 'EKXbBmGEV6hnLQFQRPc') {
+      locationId = 'EKXbBmGEV6hnLQFQRPc7';
+    }
+    payload.locationId = locationId;
     addLog('[Smart Upsert] Received Zapier upsert payload', payload);
+
+    // Normalize tags if passed as a comma-separated string from Zapier
+    if (typeof payload.tags === 'string') {
+      payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+
+    // Detect if phone availability payload before property stripping
+    const isPhonePayload = GHLService.isPhoneAvailabilityPayload(payload);
+    if (isPhonePayload) {
+      if (!Array.isArray(payload.tags)) {
+        payload.tags = [];
+      }
+      if (!payload.tags.includes('yelp-phone-captured')) {
+        payload.tags.push('yelp-phone-captured');
+      }
+    }
 
     // Strip empty or invalid email to prevent GHL 422 "email must be an email"
     if (typeof payload.email !== 'string' || !payload.email.trim() || !payload.email.includes('@')) {
@@ -491,6 +516,20 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
     }
 
     const contactId = await GHLService.smartUpsertContact(payload, leadId);
+
+    if (!contactId) {
+      addLog(`[Smart Upsert] Skipped orphan contact creation for location ${locationId}`, {
+        email: payload.email,
+        phone: payload.phone,
+        action: 'skipped_orphan_guardrail',
+      });
+      return res.status(200).json({
+        success: true,
+        action: 'skipped_orphan_guardrail',
+        message: 'Skipped orphan contact creation: no existing contact in location',
+      });
+    }
+
     res.status(200).json({
       success: true,
       contact: { id: contactId },

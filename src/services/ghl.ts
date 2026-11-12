@@ -191,6 +191,91 @@ export class GHLService {
   }
 
   /**
+   * Search for duplicate contact by email or phone in GHL location
+   */
+  public static async searchDuplicateContact(
+    locationId: string,
+    email?: string,
+    phone?: string,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    if (!email && !phone) return null;
+    const reqHeaders = headers || this.getHeaders(locationId);
+    try {
+      const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
+      const params: any = { locationId };
+      if (email) params.email = email;
+      if (phone) params.number = phone;
+
+      const res = await axios.get(searchUrl, {
+        params,
+        headers: reqHeaders,
+      });
+
+      return res.data?.contact || null;
+    } catch (err: any) {
+      console.warn(`[GHLService] searchDuplicateContact note:`, err.response?.data || err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Check if payload is a phone availability / phone captured update
+   */
+  public static isPhoneAvailabilityPayload(payload: Record<string, any>): boolean {
+    if (!payload || typeof payload !== 'object') return false;
+
+    // 1. Tags check (string or array)
+    const tags = Array.isArray(payload.tags)
+      ? payload.tags
+      : typeof payload.tags === 'string'
+        ? payload.tags.split(',').map((t: string) => t.trim().toLowerCase())
+        : [];
+    const hasPhoneTag = tags.some((t: string) => {
+      const norm = t.toLowerCase().replace(/[-_]/g, '');
+      return norm === 'yelpphonecaptured' || norm === 'phonecaptured' || norm === 'yelpphoneavailability';
+    });
+    if (hasPhoneTag) return true;
+
+    // 2. Custom fields check
+    if (Array.isArray(payload.customFields)) {
+      const hasPhoneCf = payload.customFields.some((f: any) => {
+        const key = (f.key || f.id || '').toLowerCase().replace(/[-_]/g, '');
+        return key.includes('phonecaptured') && f.value !== false && f.value !== 'false' && f.value !== '';
+      });
+      if (hasPhoneCf) return true;
+    }
+
+    // 3. Direct properties / flags
+    if (
+      payload.yelp_phone_captured ||
+      payload['yelp-phone-captured'] ||
+      payload.phone_captured ||
+      payload.isPhoneAvailability ||
+      payload.phoneAvailability ||
+      payload.action === 'phone_availability' ||
+      payload.type === 'phone_availability' ||
+      payload.eventType === 'phone_availability' ||
+      payload.event_type === 'phone_availability'
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if payload lacks a real customer name
+   */
+  public static hasNoRealName(payload: Record<string, any>): boolean {
+    if (!payload || typeof payload !== 'object') return true;
+    const rawName = typeof payload.name === 'string' ? payload.name.trim() : '';
+    const rawFirst = typeof payload.firstName === 'string' ? payload.firstName.trim() : '';
+    const isGeneric = (s: string) => !s || s.toLowerCase() === 'yelp customer' || s.toLowerCase() === 'yelp' || /@yelp\.com$/i.test(s);
+    return isGeneric(rawName) && isGeneric(rawFirst);
+  }
+
+  /**
    * Fetch a contact by ID
    */
   public static async getContact(contactId: string, locationId?: string): Promise<any> {
@@ -488,25 +573,10 @@ export class GHLService {
 
     // 2. Search by email or phone (GET /contacts/search/duplicate)
     if (details.email || details.phone) {
-      try {
-        const searchUrl = `${config.ghl.apiUrl}/contacts/search/duplicate`;
-        const params: any = {
-          locationId: locId,
-        };
-        if (details.email) params.email = details.email;
-        if (details.phone) params.number = details.phone;
-
-        const searchRes = await axios.get(searchUrl, {
-          params,
-          headers,
-        });
-
-        if (searchRes.data?.contact?.id) {
-          this.cacheContact(locId, searchRes.data.contact.id, details);
-          return searchRes.data.contact.id;
-        }
-      } catch (err) {
-        // Continue to next tier
+      const dupContact = await this.searchDuplicateContact(locId, details.email, details.phone, headers);
+      if (dupContact?.id) {
+        this.cacheContact(locId, dupContact.id, details);
+        return dupContact.id;
       }
     }
 
@@ -541,6 +611,13 @@ export class GHLService {
     }
 
     // 4. Create new contact
+    if (this.isPhoneAvailabilityPayload(details as any) && this.hasNoRealName(details as any)) {
+      console.warn(
+        `[Guardrail Blocked] Prevented orphan contact creation for ${details.email} in location ${locId}: phone-availability payload has no matching existing contact and no name.`
+      );
+      return '';
+    }
+
     const createUrl = `${config.ghl.apiUrl}/contacts/`;
     const names = (details.name || 'Yelp Customer').split(' ');
     const firstName = names[0];
@@ -650,7 +727,7 @@ export class GHLService {
     payload: Record<string, any>,
     leadId?: string,
     authHeader?: string
-  ): Promise<string> {
+  ): Promise<string | null> {
     const locId = payload.locationId || config.ghl.locationId;
     const headers = (authHeader && !KNOWN_TOKENS[locId])
       ? { Authorization: authHeader.startsWith('Bearer ') ? authHeader : `Bearer ${authHeader}`, Version: '2021-07-28', 'Content-Type': 'application/json' }
@@ -668,8 +745,8 @@ export class GHLService {
       try {
         const updateBody: Record<string, any> = {};
         if (payload.phone) updateBody.phone = payload.phone;
-        if (payload.name) updateBody.name = payload.name;
-        if (payload.firstName) updateBody.firstName = payload.firstName;
+        if (payload.name && !this.hasNoRealName(payload)) updateBody.name = payload.name;
+        if (payload.firstName && !this.hasNoRealName(payload)) updateBody.firstName = payload.firstName;
         if (payload.lastName) updateBody.lastName = payload.lastName;
         if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
           updateBody.customFields = payload.customFields;
@@ -705,8 +782,8 @@ export class GHLService {
         if (match?.id) {
           const updateBody: Record<string, any> = {};
           if (payload.phone) updateBody.phone = payload.phone;
-          if (payload.name) updateBody.name = payload.name;
-          if (payload.firstName) updateBody.firstName = payload.firstName;
+          if (payload.name && !this.hasNoRealName(payload)) updateBody.name = payload.name;
+          if (payload.firstName && !this.hasNoRealName(payload)) updateBody.firstName = payload.firstName;
           if (payload.lastName) updateBody.lastName = payload.lastName;
           if (!match.email && payload.email) updateBody.email = payload.email;
           if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
@@ -729,7 +806,7 @@ export class GHLService {
 
         // Secondary check in queryRes: same normalized name created in last 10 minutes
         const candidateName = payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim();
-        if (candidateName && candidateName.toLowerCase() !== 'yelp customer') {
+        if (candidateName && !this.hasNoRealName(payload)) {
           const cleanTarget = candidateName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
           const tenMinsAgo = Date.now() - 10 * 60 * 1000;
           const nameMatch = (queryRes.data?.contacts || []).find((c: any) => {
@@ -821,11 +898,56 @@ export class GHLService {
           return recentUnphoned.id;
         }
       } catch (e) {
-        // Fall through to native upsert
+        // Fall through to duplicate lookup
       }
     }
 
-    // 3. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
+    // 3. Search for existing contact by email or phone via duplicate search API
+    let matchedExistingContact: any = null;
+    if (payload.email) {
+      matchedExistingContact = await this.searchDuplicateContact(locId, payload.email, undefined, headers);
+    }
+    if (!matchedExistingContact?.id && payload.phone) {
+      matchedExistingContact = await this.searchDuplicateContact(locId, undefined, payload.phone, headers);
+    }
+
+    if (matchedExistingContact?.id) {
+      const matchedId = matchedExistingContact.id;
+      const updateBody: Record<string, any> = {};
+      if (payload.phone) updateBody.phone = payload.phone;
+      if (payload.name && !this.hasNoRealName(payload)) updateBody.name = payload.name;
+      if (payload.firstName && !this.hasNoRealName(payload)) updateBody.firstName = payload.firstName;
+      if (payload.lastName) updateBody.lastName = payload.lastName;
+      if (!matchedExistingContact.email && payload.email) updateBody.email = payload.email;
+      if (Array.isArray(payload.customFields) && payload.customFields.length > 0) {
+        updateBody.customFields = payload.customFields;
+      }
+
+      await axios.put(`${config.ghl.apiUrl}/contacts/${matchedId}`, updateBody, { headers });
+      if (Array.isArray(payload.tags) && payload.tags.length > 0) {
+        await axios.post(
+          `${config.ghl.apiUrl}/contacts/${matchedId}/tags`,
+          { tags: payload.tags },
+          { headers }
+        );
+      }
+      this.cacheContact(locId, matchedId, cacheInfo);
+      console.log(`[GHLService] SmartUpsert updated existing contact ${matchedId} matched by duplicate search`);
+      return matchedId;
+    }
+
+    // 4. Defensive Guardrail: Prevent orphan contact creation for phone-availability / no-name payloads
+    const isPhonePayload = this.isPhoneAvailabilityPayload(payload);
+    const noName = this.hasNoRealName(payload);
+
+    if (isPhonePayload && noName) {
+      console.warn(
+        `[Guardrail Blocked] Prevented orphan contact creation for ${payload.email} in location ${locId}: phone-availability payload has no matching existing contact and no name.`
+      );
+      return null;
+    }
+
+    // 5. Native GHL /contacts/upsert with sanitized payload (uses email if present, or phone if email was empty)
     const res = await axios.post(`${config.ghl.apiUrl}/contacts/upsert`, payload, { headers });
     const contactId = res.data?.contact?.id;
     if (contactId) {
@@ -839,7 +961,7 @@ export class GHLService {
         }).catch(e => console.warn('[GHLService] Auto opp creation note:', e.message));
       }
     }
-    return contactId;
+    return contactId || null;
   }
 }
 

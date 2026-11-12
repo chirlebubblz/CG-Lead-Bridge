@@ -17,10 +17,12 @@ The Jacksonville standard uses a **hybrid 3-Zap + Server Middleware** architectu
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 2. ZAP 2: PHONE NUMBER CAPTURE                                         │
+│ 2. ZAP 2: PHONE NUMBER CAPTURE (DEFENSIVE GUARDRAIL)                   │
 │    Trigger: Yelp Leads (Phone Availability)                            │
-│    Action:  LeadConnector (Updates Contact with Phone & Tag)           │
-│             ➔ GHL Workflow finishes 90s wait, sees phone, sends SMS!   │
+│    Pattern: Find Contact ➔ Filter (Exists) ➔ Update Contact            │
+│             (or Smart Upsert with Orphan Contact Guardrail)            │
+│    Action:  Updates Contact with Phone & Tag                           │
+│             ➔ GHL Workflow finishes 90s wait, sees phone, alerts team! │
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -111,13 +113,30 @@ Under **Automation ➔ Workflows ➔ Folder: `(Yelp Leads)`**:
   - Tags: `source: yelp, yelp-lead`
   - Map: Service Type, Bedrooms, Bathrooms, Cleaning Frequency, Notes, Lead ID.
 
-### Zap 2: Phone Availability
-- **Trigger:** `Yelp Leads` ➔ `Phone Availability`
-- **Action:** `LeadConnector` ➔ `Create/Update Contact`:
-  - Email: `Temporary Email Address` (`leadsapi+...`) *(Matches existing contact)*
+### Zap 2: Phone Availability (Golden Master: Find ➔ Filter ➔ Update Pattern)
+To prevent accidental orphan contacts (e.g. creating a blank "Yelp Customer" record when a phone event fires before Zap 1 finishes or due to a cross-account routing issue), Zap 2 must strictly follow a guarded update pattern:
+
+#### Option A: Native Zapier Pattern (Standard for LeadConnector Zaps)
+- **Step 1 (Trigger):** `Yelp Leads` ➔ `Phone Availability`
+- **Step 2 (Action):** `LeadConnector` ➔ `Find Contact`:
+  - Search Field: `Email` = `Temporary Email Address` (`leadsapi+...`)
+  - Should this step be considered a "success" when nothing is found? = `Yes`
+- **Step 3 (Filter):** `Filter by Zapier` ➔ `Only continue if...`:
+  - `2. ID` (Contact ID) **Exists**
+  - *(Halts Zap execution cleanly if the contact does not exist in GHL yet, avoiding unparented contact creation)*
+- **Step 4 (Action):** `LeadConnector` ➔ `Update Contact`:
+  - Contact: `Custom` ➔ `2. ID`
   - Phone: `Phone Number`
-  - Tag: `yelp-phone-captured`
+  - Tags: `yelp-phone-captured`
   - Custom Field: `Yelp Phone Captured` = `Yes`
+
+#### Option B: Bridge Smart Upsert Guardrail (`POST /contacts/upsert`)
+If Zap 2 routes via Webhook to the bridge server:
+- Payload includes `email` (`leadsapi+...`), `phone`, and `tags: ["yelp-phone-captured"]`.
+- Server executes `GHLService.smartUpsertContact()`:
+  1. Searches for existing contact in target location via duplicate lookup (`/contacts/search/duplicate`).
+  2. If found, updates existing contact with phone and `yelp-phone-captured` tag.
+  3. **Defensive Orphan Guardrail:** If no matching contact is found and payload lacks a real name (`isPhonePayload && noName`), the server rejects orphan creation, logs `[Guardrail Blocked]`, and returns `{ success: true, action: 'skipped_orphan_guardrail' }` rather than letting GHL create an unassociated "Yelp Customer" contact.
 
 ### Zap 3: Inbound Chat Webhook (Server Bridge)
 - **Trigger:** `Email by Zapier` ➔ `New Inbound Email`
@@ -142,13 +161,21 @@ In the client's business Gmail receiving Yelp alerts:
 
 ---
 
-## 5. Middleware Server Shielding (`src/server.ts`)
+## 5. Middleware Server Shielding & Guardrails (`src/server.ts`, `src/services/ghl.ts`)
+
+### A. Owner Email Domain Shield
 When adding new business email domains, append them to the blacklist guardrail in `src/server.ts` so owner/forwarder emails are never ingested as leads:
 ```typescript
 if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('jacksonvillecleaningco') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('yallmaid'))) {
   email = undefined;
 }
 ```
+
+### B. Defensive Orphan Contact Guardrail
+In high-volume or multi-account setups, Yelp "Phone Availability" webhook events may arrive before the initial quote intake completes, or route to an unintended location ID. The middleware enforces strict orphan protection:
+1. **Duplicate Search:** Evaluates `/contacts/search/duplicate` in the target location by email or phone.
+2. **Contact Enrichment:** Updates existing record if matched.
+3. **Guardrail Interception:** If no matching contact exists in the targeted sub-account and the payload lacks a real human name (`isPhonePayload && noName`), the upsert is safely aborted with HTTP 200 `{ success: true, action: 'skipped_orphan_guardrail' }`. This prevents contaminating GHL with unassociated "Yelp Customer" records.
 
 ---
 
