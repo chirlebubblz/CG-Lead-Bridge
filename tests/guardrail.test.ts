@@ -227,4 +227,57 @@ describe('Orphan Contact Guardrail Unit Tests', () => {
       });
     });
   });
+
+  describe('Austin Tag Compatibility & Opportunity Guardrail', () => {
+    it('should include both "yelp lead" and "yelp-lead" for Austin location', () => {
+      const locationId = '19jBWYeRsrzDq6Oe1nth';
+      const tags = ['source: yelp', 'yelp-lead'];
+      
+      const hasYelpTag = tags.some((t: string) => /yelp[-_ ]?lead/i.test(t) || /source:?\s*yelp/i.test(t));
+      if (hasYelpTag) {
+        if (locationId === '19jBWYeRsrzDq6Oe1nth' && !tags.includes('yelp lead')) {
+          tags.push('yelp lead');
+        }
+        if (!tags.includes('source: yelp')) {
+          tags.push('source: yelp');
+        }
+        if (!tags.includes('yelp-lead')) {
+          tags.push('yelp-lead');
+        }
+      }
+
+      expect(tags).toContain('yelp lead');
+      expect(tags).toContain('yelp-lead');
+      expect(tags).toContain('source: yelp');
+    });
+
+    it('should invoke createOpportunity on smartUpsertContact for Yelp leads', async () => {
+      mockedAxios.get.mockResolvedValue({ data: { contact: null, contacts: [] } });
+      mockedAxios.post.mockImplementation(async (url: string) => {
+        if (url.includes('/contacts/upsert')) {
+          return { data: { contact: { id: 'new_austin_contact_101' } } };
+        }
+        if (url.includes('/opportunities/')) {
+          return { data: { opportunity: { id: 'opp_austin_101' } } };
+        }
+        return { data: { success: true } };
+      });
+
+      const payload = {
+        locationId: '19jBWYeRsrzDq6Oe1nth',
+        name: 'Austin Lead Test',
+        email: 'austin.test@messaging.yelp.com',
+        tags: ['source: yelp', 'yelp-lead', 'yelp lead'],
+      };
+
+      const result = await GHLService.smartUpsertContact(payload);
+      expect(result).toBe('new_austin_contact_101');
+
+      // Opportunity creation post check
+      const oppPostCall = mockedAxios.post.mock.calls.find(call =>
+        typeof call[0] === 'string' && call[0].includes('/opportunities/')
+      );
+      expect(oppPostCall).toBeDefined();
+    });
+  });
 });

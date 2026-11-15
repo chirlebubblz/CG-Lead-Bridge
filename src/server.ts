@@ -375,6 +375,22 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }
 
+    // Ensure both 'yelp-lead' and 'yelp lead' are present when a Yelp tag is passed
+    if (Array.isArray(payload.tags)) {
+      const hasYelpTag = payload.tags.some((t: string) => /yelp[-_ ]?lead/i.test(t) || /source:?\s*yelp/i.test(t));
+      if (hasYelpTag) {
+        if (locationId === '19jBWYeRsrzDq6Oe1nth' && !payload.tags.includes('yelp lead')) {
+          payload.tags.push('yelp lead');
+        }
+        if (!payload.tags.includes('source: yelp')) {
+          payload.tags.push('source: yelp');
+        }
+        if (!payload.tags.includes('yelp-lead')) {
+          payload.tags.push('yelp-lead');
+        }
+      }
+    }
+
     // Detect if phone availability payload before property stripping
     const isPhonePayload = GHLService.isPhoneAvailabilityPayload(payload);
     if (isPhonePayload) {
@@ -427,6 +443,22 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
     // Normalize tags if passed as a comma-separated string from Zapier
     if (typeof payload.tags === 'string') {
       payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+
+    // Ensure both 'yelp-lead' and 'yelp lead' are present when a Yelp tag is passed
+    if (Array.isArray(payload.tags)) {
+      const hasYelpTag = payload.tags.some((t: string) => /yelp[-_ ]?lead/i.test(t) || /source:?\s*yelp/i.test(t));
+      if (hasYelpTag) {
+        if (locationId === '19jBWYeRsrzDq6Oe1nth' && !payload.tags.includes('yelp lead')) {
+          payload.tags.push('yelp lead');
+        }
+        if (!payload.tags.includes('source: yelp')) {
+          payload.tags.push('source: yelp');
+        }
+        if (!payload.tags.includes('yelp-lead')) {
+          payload.tags.push('yelp-lead');
+        }
+      }
     }
 
     // Helper to sanitize custom field values (unpacks Yelp JSON objects / stringified JSON)
@@ -528,6 +560,18 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
         action: 'skipped_orphan_guardrail',
         message: 'Skipped orphan contact creation: no existing contact in location',
       });
+    }
+
+    // Safety net: If this is a new intake with survey answers, ensure survey chat bubble is in Conversations
+    if (!isPhonePayload) {
+      const hasSurvey = Array.isArray(payload.customFields) && payload.customFields.some((f: any) =>
+        f.key?.includes('yelp_service_type') || f.key?.includes('yelp_bedrooms') || f.key?.includes('yelp_notes') || f.key?.includes('notes')
+      );
+      if (hasSurvey) {
+        GHLService.ensureInboundSurveySummary(contactId, locationId, payload, leadId).catch(e =>
+          console.warn('[Server] Auto survey summary bubble note:', e.message)
+        );
+      }
     }
 
     res.status(200).json({

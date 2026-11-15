@@ -358,9 +358,13 @@ export class GHLService {
     const headers = this.getHeaders(locationId);
     setTimeout(async () => {
       try {
+        const tagsToApply = [...tags];
+        if (locationId === '19jBWYeRsrzDq6Oe1nth' && !tagsToApply.includes('yelp lead')) {
+          tagsToApply.push('yelp lead');
+        }
         await axios.post(
           `${config.ghl.apiUrl}/contacts/${contactId}/tags`,
-          { tags },
+          { tags: tagsToApply },
           { headers }
         );
       } catch (e: any) {
@@ -743,6 +747,85 @@ export class GHLService {
   }
 
   /**
+   * Inject a clean summary inbound chat bubble into GHL Conversations if none exists
+   * Acts as a safety net if Zap 3 (email forwarding) is delayed or not configured
+   */
+  public static async ensureInboundSurveySummary(
+    contactId: string,
+    locationId: string,
+    payload: Record<string, any>,
+    leadId?: string
+  ): Promise<void> {
+    const headers = this.getHeaders(locationId);
+    try {
+      // 1. Check if conversation already has messages
+      const convRes = await axios.get(`${config.ghl.apiUrl}/conversations/search`, {
+        params: { locationId, contactId },
+        headers,
+        timeout: 10000,
+      });
+      const convs = convRes.data?.conversations || [];
+      if (convs.length > 0) {
+        const convId = convs[0].id;
+        const msgsRes = await axios.get(`${config.ghl.apiUrl}/conversations/${convId}/messages`, {
+          headers,
+          timeout: 10000,
+        });
+        const msgs = msgsRes.data?.messages?.messages || [];
+        const hasExistingYelpBubble = msgs.some((m: any) =>
+          (m.body && (m.body.includes('New Yelp Lead:') || m.body.toLowerCase().includes('yelp')))
+        );
+        if (hasExistingYelpBubble) {
+          return;
+        }
+      }
+
+      // 2. Format survey answers cleanly
+      const name = payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || 'Yelp Customer';
+      const customFields: any[] = Array.isArray(payload.customFields) ? payload.customFields : [];
+
+      const getFieldValue = (keyPattern: RegExp): string | undefined => {
+        const f = customFields.find((cf: any) => keyPattern.test(cf.key || cf.id || ''));
+        return f?.value ? String(f.value).trim() : undefined;
+      };
+
+      const service = getFieldValue(/service/i) || payload.yelp_service_type;
+      const bedrooms = getFieldValue(/bedroom/i) || payload.yelp_bedrooms;
+      const bathrooms = getFieldValue(/bathroom/i) || payload.yelp_bathrooms;
+      const frequency = getFieldValue(/frequency/i) || payload.yelp_cleaning_frequency;
+      const notes = getFieldValue(/notes|customer_request/i) || payload.yelp_notes__customer_request || payload.notes;
+
+      const lines: string[] = [`New Yelp Lead: ${name}`];
+      if (service) lines.push(`• Service: ${service}`);
+      if (bedrooms && bathrooms) {
+        lines.push(`• Size: ${bedrooms} bedroom${bedrooms !== '1' ? 's' : ''} / ${bathrooms} bathroom${bathrooms !== '1' ? 's' : ''}`);
+      } else {
+        if (bedrooms) lines.push(`• Bedrooms: ${bedrooms}`);
+        if (bathrooms) lines.push(`• Bathrooms: ${bathrooms}`);
+      }
+      if (frequency) lines.push(`• Frequency: ${frequency}`);
+      if (notes) {
+        const cleanNotes = notes.split('\n\n').map((q: string) => q.replace(/\n/g, ' ').trim()).filter(Boolean);
+        for (const q of cleanNotes) {
+          lines.push(`• ${q}`);
+        }
+      }
+      if (payload.phone) lines.push(`• Phone: ${payload.phone}`);
+
+      const summaryMessage = lines.join('\n');
+      await this.postInboundMessage({
+        contactId,
+        message: summaryMessage,
+        leadId: leadId || `yelp_summary_${contactId}`,
+        locationId,
+      });
+      console.log(`[GHLService] Successfully injected fallback survey summary chat bubble for contact ${contactId} (loc: ${locationId})`);
+    } catch (e: any) {
+      console.warn(`[GHLService] Fallback survey summary bubble note:`, e.message);
+    }
+  }
+
+  /**
    * Smart Upsert: Reconciles by Yelp Lead ID first, or falls back to sanitized GHL /contacts/upsert
    */
   public static async smartUpsertContact(
@@ -754,6 +837,20 @@ export class GHLService {
     const headers = (authHeader && !KNOWN_TOKENS[locId])
       ? { Authorization: authHeader.startsWith('Bearer ') ? authHeader : `Bearer ${authHeader}`, Version: '2021-07-28', 'Content-Type': 'application/json' }
       : this.getHeaders(locId);
+
+    const isPhonePayload = this.isPhoneAvailabilityPayload(payload);
+    const hasYelpIntake = Array.isArray(payload.tags) && payload.tags.some((t: string) => /yelp[-_ ]?lead/i.test(t) || /source:?\s*yelp/i.test(t));
+
+    const postProcessYelpIntake = (cid: string) => {
+      if (!isPhonePayload && hasYelpIntake) {
+        this.triggerTagsAndWorkflow(cid, locId, payload.tags);
+        this.createOpportunity({
+          contactId: cid,
+          name: payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || 'Yelp Customer',
+          locationId: locId,
+        }).catch(e => console.warn('[GHLService] Auto opp creation note:', e.message));
+      }
+    };
 
     // 0. Zero-latency in-memory cache check (bypasses GHL's 10-15s Elasticsearch indexing delay)
     const cacheInfo = {
@@ -783,6 +880,7 @@ export class GHLService {
         }
         this.cacheContact(locId, cachedId, cacheInfo);
         console.log(`[GHLService] SmartUpsert updated cached contact ${cachedId}`);
+        postProcessYelpIntake(cachedId);
         return cachedId;
       } catch (e) {
         // Fall through if cached contact update fails
@@ -824,6 +922,7 @@ export class GHLService {
           }
           this.cacheContact(locId, match.id, cacheInfo);
           console.log(`[GHLService] SmartUpsert updated existing contact ${match.id} by leadId ${leadId}`);
+          postProcessYelpIntake(match.id);
           return match.id;
         }
 
@@ -847,6 +946,7 @@ export class GHLService {
             await axios.put(`${config.ghl.apiUrl}/contacts/${nameMatch.id}`, updateBody, { headers, timeout: 10000 });
             this.cacheContact(locId, nameMatch.id, cacheInfo);
             console.log(`[GHLService] SmartUpsert matched recent contact ${nameMatch.id} by name & time window "${candidateName}"`);
+            postProcessYelpIntake(nameMatch.id);
             return nameMatch.id;
           }
         }
@@ -881,6 +981,7 @@ export class GHLService {
             await axios.put(`${config.ghl.apiUrl}/contacts/${notesMatch.id}`, updateBody, { headers, timeout: 10000 });
             this.cacheContact(locId, notesMatch.id, cacheInfo);
             console.log(`[GHLService] SmartUpsert matched recent contact ${notesMatch.id} by notes fingerprint`);
+            postProcessYelpIntake(notesMatch.id);
             return notesMatch.id;
           }
         }
@@ -919,6 +1020,7 @@ export class GHLService {
           }
           this.cacheContact(locId, recentUnphoned.id, cacheInfo);
           console.log(`[GHLService] SmartUpsert matched recent un-phoned Yelp contact ${recentUnphoned.id}`);
+          postProcessYelpIntake(recentUnphoned.id);
           return recentUnphoned.id;
         }
       } catch (e) {
@@ -957,11 +1059,11 @@ export class GHLService {
       }
       this.cacheContact(locId, matchedId, cacheInfo);
       console.log(`[GHLService] SmartUpsert updated existing contact ${matchedId} matched by duplicate search`);
+      postProcessYelpIntake(matchedId);
       return matchedId;
     }
 
     // 4. Defensive Guardrail: Prevent orphan contact creation for phone-availability / no-name payloads
-    const isPhonePayload = this.isPhoneAvailabilityPayload(payload);
     const noName = this.hasNoRealName(payload);
 
     if (isPhonePayload && noName) {
@@ -976,14 +1078,7 @@ export class GHLService {
     const contactId = res.data?.contact?.id;
     if (contactId) {
       this.cacheContact(locId, contactId, cacheInfo);
-      if (Array.isArray(payload.tags) && (payload.tags.includes('source: yelp') || payload.tags.includes('yelp-lead'))) {
-        this.triggerTagsAndWorkflow(contactId, locId, payload.tags);
-        this.createOpportunity({
-          contactId,
-          name: payload.name || `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || 'Yelp Customer',
-          locationId: locId,
-        }).catch(e => console.warn('[GHLService] Auto opp creation note:', e.message));
-      }
+      postProcessYelpIntake(contactId);
     }
     return contactId || null;
   }

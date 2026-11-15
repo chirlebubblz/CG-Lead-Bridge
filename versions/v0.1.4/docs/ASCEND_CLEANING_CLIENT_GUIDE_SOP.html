@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ascend Cleaning — Systems Guide, Lead Nurturing & Staff SOP</title>
+  <style>
+    @page { 
+      size: letter; 
+      margin: 10mm 12mm 10mm 12mm; 
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.5;
+      font-size: 11px;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #091e3a 0%, #1e3a8a 55%, #0284c7 100%);
+      color: #fff;
+      padding: 16px 20px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+    }
+    .header-pill {
+      display: inline-block;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #bae6fd;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-bottom: 5px;
+    }
+    .header h1 { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+    .header p  { font-size: 11px; color: #cbd5e1; margin-top: 3px; max-width: 650px; }
+    .header-meta {
+      display: flex; gap: 16px; margin-top: 8px;
+      padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15);
+      font-size: 10px; color: #94a3b8;
+    }
+    .header-meta strong { color: #f1f5f9; }
+
+    /* ─── KPI ROW ─── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .kpi {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-left: 3.5px solid #0284c7; border-radius: 6px; padding: 8px 10px;
+    }
+    .kpi.alert { border-left-color: #ef4444; }
+    .kpi.success { border-left-color: #10b981; }
+    .kpi.purple { border-left-color: #8b5cf6; }
+    .kpi-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: 2px; }
+    .kpi-value { font-size: 12.5px; font-weight: 800; color: #0f172a; }
+    .kpi-sub   { font-size: 9px; color: #475569; margin-top: 2px; }
+
+    /* ─── SECTION STYLING ─── */
+    .section-title {
+      font-size: 12.5px; font-weight: 800; color: #0f172a;
+      border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;
+      margin: 12px 0 8px; display: flex; align-items: center; gap: 6px;
+    }
+    .section-title .badge {
+      font-size: 8.5px; background: #e0f2fe; color: #0369a1;
+      padding: 1px 6px; border-radius: 4px; font-weight: 700;
+    }
+
+    /* ─── RESOLUTION CARDS (CLIENT CONCERNS) ─── */
+    .concern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .concern-card {
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px;
+    }
+    .concern-tag {
+      font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+      padding: 2px 6px; border-radius: 3px; display: inline-block; margin-bottom: 4px;
+    }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-blue { background: #e0f2fe; color: #075985; }
+    .tag-purple { background: #f3e8ff; color: #6b21a8; }
+    .concern-card h4 { font-size: 10.5px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+    .concern-card p { font-size: 9.5px; color: #334155; line-height: 1.4; }
+
+    /* ─── TABLES ─── */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px; }
+    th {
+      background: #f1f5f9; color: #475569; font-weight: 700; text-align: left;
+      padding: 6px 8px; border: 1px solid #e2e8f0; font-size: 9px; text-transform: uppercase;
+    }
+    td { padding: 6px 8px; border: 1px solid #e2e8f0; vertical-align: top; color: #334155; }
+    tr:nth-child(even) { background: #fafafa; }
+    .code { font-family: ui-monospace, Menlo, Monaco, monospace; font-size: 9px; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; color: #0f172a; }
+
+    /* ─── CALLOUT BOXES ─── */
+    .callout {
+      background: #f8fafc; border-left: 3px solid #64748b; padding: 8px 10px; border-radius: 4px;
+      margin: 8px 0; font-size: 9.5px; line-height: 1.4; color: #334155;
+    }
+    .callout.danger { background: #fef2f2; border-left-color: #ef4444; color: #991b1b; }
+    .callout.success { background: #f0fdf4; border-left-color: #22c55e; color: #166534; }
+    .callout.info { background: #f0f9ff; border-left-color: #0284c7; color: #0369a1; }
+    .callout strong { font-weight: 700; }
+
+    /* ─── WORKFLOW TOUCH BLOCKS ─── */
+    .touch-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+    .touch-item {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 5px; padding: 7px 10px;
+    }
+    .touch-header { display: flex; justify-content: space-between; font-weight: 700; font-size: 9.5px; color: #0f172a; margin-bottom: 2px; }
+    .touch-badge { font-size: 8.5px; padding: 1px 5px; border-radius: 3px; background: #e2e8f0; color: #475569; }
+    .touch-body { font-size: 9.5px; color: #334155; font-style: italic; line-height: 1.35; }
+
+    /* ─── SOP PROCEDURES ─── */
+    .sop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+    .sop-box {
+      border: 1px solid #e2e8f0; border-radius: 6px; padding: 9px; background: #ffffff;
+    }
+    .sop-box h5 { font-size: 10px; font-weight: 800; color: #0f172a; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .sop-box ol { margin-left: 16px; font-size: 9.5px; color: #334155; line-height: 1.4; }
+    .sop-box ol li { margin-bottom: 3px; }
+
+    /* ─── PAGE BREAKS ─── */
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <span class="header-pill">Operational Guide & Client SOP</span>
+    <h1>Ascend Cleaning — Systems Guide, Lead Nurturing & Staff SOP</h1>
+    <p>Complete documentation for multi-channel lead automation, complaint/refund protection, zero-discount nurturing, and staff workflows.</p>
+    <div class="header-meta">
+      <div>Location: <strong>Ascend Cleaning (Los Angeles, CA)</strong></div>
+      <div>Location ID: <strong class="code">IdJoWa68hD3nVj45Fv7f</strong></div>
+      <div>Contact: <strong>ascendcleaningcompany@gmail.com | (213) 319-5497</strong></div>
+    </div>
+  </div>
+
+  <!-- KPI SUMMARY -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Active Nurture Drips</div>
+      <div class="kpi-value">4 Sequences</div>
+      <div class="kpi-sub">Yelp, Meta, Web & Recurring</div>
+    </div>
+    <div class="kpi success">
+      <div class="kpi-label">Pricing Policy</div>
+      <div class="kpi-value">Zero Promos</div>
+      <div class="kpi-sub">100% Full-Price Value Messaging</div>
+    </div>
+    <div class="kpi alert">
+      <div class="kpi-label">Customer Shield</div>
+      <div class="kpi-value">3-Layer Circuit Breaker</div>
+      <div class="kpi-sub">Instant Refund & Complaint Freeze</div>
+    </div>
+    <div class="kpi purple">
+      <div class="kpi-label">Yelp Channel</div>
+      <div class="kpi-value">Pure Email Relay</div>
+      <div class="kpi-sub">Native In-App Chat Delivery</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: RESOLVING CLIENT CONCERNS -->
+  <div class="section-title">
+    <span>1. Addressing Client Concerns Directly</span>
+    <span class="badge">Non-Negotiable Architecture</span>
+  </div>
+
+  <div class="concern-grid">
+    <div class="concern-card">
+      <span class="concern-tag tag-blue">Lead Nurturing</span>
+      <h4>Concern: "Automations built out for nurturing leads with automatic messages"</h4>
+      <p><strong>Resolved:</strong> Deployed 4 dedicated automated sequences: 2 for Yelp leads (24h/72h quote follow-ups + 48h/Day 5 revival), 1 for Meta/Web leads (30-day 6-touch sequence), and 1 for past clients (14-day/21-day recurring upsell).</p>
+    </div>
+
+    <div class="concern-card">
+      <span class="concern-tag tag-red">Safety Shield</span>
+      <h4>Concern: "Make sure it doesn’t blast people that had a bad experience or asked for refunds"</h4>
+      <p><strong>Resolved:</strong> Built a 3-layer protection shield. Past clients only enter if tagged <span class="code">one-time-good</span>. All workflows evaluate pre-send guardrails, and Workflow C acts as an instant circuit breaker upon tagging <span class="code">bad-experience</span> or <span class="code">refund-requested</span>.</p>
+    </div>
+
+    <div class="concern-card">
+      <span class="concern-tag tag-green">Zero Discounts</span>
+      <h4>Concern: "Let's not do promos, client did not allow promos"</h4>
+      <p><strong>Resolved:</strong> Completely removed all percentage-off and dollar-off incentives. All follow-up copy centers on <strong>priority weekend scheduling</strong>, <strong>custom cleaning checklists</strong>, and <strong>dedicated cleaner consistency</strong>.</p>
+    </div>
+
+    <div class="concern-card">
+      <span class="concern-tag tag-purple">Yelp Chat Bubble</span>
+      <h4>Concern: "Yelp messages must land where the customer actually looks"</h4>
+      <p><strong>Resolved:</strong> Outbound messages to Yelp leads are dispatched via Yelp's Relay Email (<span class="code">leadsapi+...</span>). Yelp instantly translates these into push notifications and native in-app chat bubbles with zero carrier SMS filtering risk.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 2: GHL WORKFLOW DIRECTORY -->
+  <div class="section-title">
+    <span>2. Live Workflow Directory in GoHighLevel</span>
+    <span class="badge">Live & Published</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Workflow Name in GHL</th>
+        <th>Workflow ID</th>
+        <th>Audience</th>
+        <th>Trigger Event</th>
+        <th>Delivery Channel</th>
+        <th>Key Safety Guardrails</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Quote Follow-up Drip</strong></td>
+        <td><span class="code">12aec0b0...</span></td>
+        <td>Yelp Leads</td>
+        <td>Opportunity moved to <em>Quoted</em></td>
+        <td>Yelp Email Relay</td>
+        <td>Stop on Response = ON; Exits immediately if booked.</td>
+      </tr>
+      <tr>
+        <td><strong>No Answer Re-engagement</strong></td>
+        <td><span class="code">b2888301...</span></td>
+        <td>Yelp Leads</td>
+        <td>Opportunity moved to <em>No Answer</em></td>
+        <td>Yelp Email Relay</td>
+        <td>Stop on Response = ON; Day 5 polite wrap-up.</td>
+      </tr>
+      <tr>
+        <td><strong>(Meta & Web Leads) 30-Day Long-Term Nurture</strong></td>
+        <td><span class="code">03b32e24...</span></td>
+        <td>Meta / Web Leads</td>
+        <td>Stage ➔ <em>Automated Sequence</em><br>OR Tag: <span class="code">nurture-active</span></td>
+        <td>SMS + Email</td>
+        <td>Suppressed if <span class="code">bad-experience</span>, <span class="code">refund</span>, or <span class="code">customer</span>.</td>
+      </tr>
+      <tr>
+        <td><strong>Upsell Recurring Cleaning</strong></td>
+        <td><span class="code">5028fff2...</span></td>
+        <td>Past Clients</td>
+        <td>Contact Tag Added: <span class="code">one-time-good</span></td>
+        <td>SMS + Email</td>
+        <td>Suppressed if <span class="code">customer-recurring</span>, <span class="code">refund</span>, or <span class="code">bad-experience</span>.</td>
+      </tr>
+      <tr>
+        <td><strong>Bad Experience Alert Workflow</strong></td>
+        <td><span class="code">e81ce855...</span></td>
+        <td>Any Contact</td>
+        <td>Tag Added: <span class="code">bad-experience</span>, <span class="code">refund</span></td>
+        <td>Internal Staff Alert</td>
+        <td><strong>Circuit Breaker:</strong> Ejects contact from all drips, applies <span class="code">sms-suppressed</span>.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PAGE BREAK FOR CLEAN PRINTING -->
+  <div class="page-break"></div>
+
+  <!-- SECTION 3: SEQUENCE BLUEPRINTS -->
+  <div class="section-title">
+    <span>3. Nurturing Sequences & Zero-Discount Copy Blueprint</span>
+    <span class="badge">Value-Based Copy</span>
+  </div>
+
+  <div class="callout info">
+    <strong>Design Principle:</strong> Messages sound human, polite, and consultative. Follow-ups stop immediately once a customer responds or books.
+  </div>
+
+  <div class="touch-list">
+    <!-- TOUCH 1 -->
+    <div class="touch-item">
+      <div class="touch-header">
+        <span>Yelp Quote Follow-Up (Touch 1 — 24 Hours Post-Quote)</span>
+        <span class="touch-badge">Yelp Email Relay</span>
+      </div>
+      <div class="touch-body">
+        "Hi {{contact.first_name}}, Brandon here from Ascend Cleaning! Just following up to see if you had any questions on the estimate we sent for your {{contact.yelp_service_type}}? We'd love to take care of your home — just reply directly here on Yelp and we'll take care of it right away!"
+      </div>
+    </div>
+
+    <!-- TOUCH 2 -->
+    <div class="touch-item">
+      <div class="touch-header">
+        <span>Yelp Quote Follow-Up (Touch 2 — 72 Hours Post-Quote / Final Touch)</span>
+        <span class="touch-badge">Yelp Email Relay</span>
+      </div>
+      <div class="touch-body">
+        "Hi {{contact.first_name}}, wanted to touch base one last time regarding your {{contact.yelp_service_type}} estimate. We still have openings for this coming week and would love to get your home sparkling clean! Let us know if you'd like us to hold a spot for you — just reply here anytime."
+      </div>
+    </div>
+
+    <!-- TOUCH 3 -->
+    <div class="touch-item">
+      <div class="touch-header">
+        <span>Meta/Web 30-Day Nurture (Day 7 — Priority Scheduling & Customization)</span>
+        <span class="touch-badge">SMS + Email</span>
+      </div>
+      <div class="touch-body">
+        "Hi {{contact.first_name}}, Brandon from Ascend Cleaning! Our calendar fills up quickly toward the weekend — would you like us to reserve a preferred morning or afternoon spot for your home? Let us know what day works best! 🗓️"
+      </div>
+    </div>
+
+    <!-- TOUCH 4 -->
+    <div class="touch-item">
+      <div class="touch-header">
+        <span>Past Client Recurring Upsell (Touch 1 — 14 Days Post-Clean)</span>
+        <span class="touch-badge">SMS (Cleaners & Consistency)</span>
+      </div>
+      <div class="touch-body">
+        "Hi {{contact.first_name}}! Hope your home has been feeling fresh since your clean with Ascend Cleaning! ✨ Most of our clients prefer having regular bi-weekly or monthly upkeep so the house stays effortlessly clean with the same dedicated cleaner. Would you like us to lock in a regular schedule for you?"
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: STAFF SOPS -->
+  <div class="section-title">
+    <span>4. Daily Staff Operating Procedures (SOP)</span>
+    <span class="badge">Team Action Guide</span>
+  </div>
+
+  <div class="sop-grid">
+    <div class="sop-box">
+      <h5>1. New Yelp Lead Intake</h5>
+      <ol>
+        <li>Lead automatically lands in GHL <strong>Conversations</strong> & Pipeline 5 (<em>New Leads</em>).</li>
+        <li>Review questionnaire (Bedrooms, Bathrooms, Notes) in custom fields.</li>
+        <li>Send customer greeting and initial estimate inside the chat thread.</li>
+      </ol>
+    </div>
+
+    <div class="sop-box">
+      <h5>2. When a Quote is Sent</h5>
+      <ol>
+        <li>Drag opportunity card from <em>New Leads</em> to <strong>Quoted</strong>.</li>
+        <li>This triggers the 24h & 72h automated Yelp follow-up sequence.</li>
+        <li>Sequence automatically halts as soon as customer replies.</li>
+      </ol>
+    </div>
+
+    <div class="sop-box">
+      <h5>3. Safety Disarm: Unhappy / Refund</h5>
+      <ol>
+        <li>If customer complains or requests a refund, open their contact card.</li>
+        <li>Apply tag: <span class="code">bad-experience</span> OR <span class="code">refund-requested</span>.</li>
+        <li><strong>Circuit breaker activates:</strong> Contact is instantly ejected from all marketing, SMS is suppressed, and management is alerted.</li>
+      </ol>
+    </div>
+
+    <div class="sop-box">
+      <h5>4. Post-Cleaning Routine</h5>
+      <ol>
+        <li>Following a clean, confirm customer satisfaction.</li>
+        <li>If clean was a success, apply tag: <span class="code">one-time-good</span>.</li>
+        <li>In 14 days, the system follows up to lock in their recurring schedule.</li>
+        <li><em>If unverified, use <span class="code">one-time-unknown</span> to keep them safe from automated messages.</em></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- SECTION 5: TECHNICAL STACK -->
+  <div class="section-title">
+    <span>5. Technical Stack & Tag Reference</span>
+    <span class="badge">Backend Registry</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Ascend Tag Name</th>
+        <th>Tag ID in GHL</th>
+        <th>System Role & Automation Behavior</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="code">one-time-good</span></td>
+        <td><span class="code">cslTpsdx6gBT9cyZuERD</span></td>
+        <td><strong>Whitelist Trigger:</strong> Enrolls satisfied clients in 14-day recurring re-booking drip.</td>
+      </tr>
+      <tr>
+        <td><span class="code">bad-experience</span></td>
+        <td><span class="code">J19UoHX5XTd33wAnkxAX</span></td>
+        <td><strong>Circuit Breaker:</strong> Freezes all marketing, ejects from drips, tags <span class="code">sms-suppressed</span>.</td>
+      </tr>
+      <tr>
+        <td><span class="code">refund</span> / <span class="code">refund-requested</span></td>
+        <td><span class="code">HvmnbFn... / h9NduPx...</span></td>
+        <td><strong>Circuit Breaker:</strong> Universal exclusion from all promotional & follow-up messaging.</td>
+      </tr>
+      <tr>
+        <td><span class="code">customer-recurring</span></td>
+        <td><span class="code">fl5Nj3tN3LRJSRAISKWA</span></td>
+        <td><strong>Suppression Tag:</strong> Prevents pitching recurring cleans to existing recurring customers.</td>
+      </tr>
+      <tr>
+        <td><span class="code">sms-suppressed</span></td>
+        <td><span class="code">m1NdRuoH2Yxs9ofr7UVb</span></td>
+        <td><strong>Compliance Tag:</strong> Globally blocks all outbound automated SMS messages.</td>
+      </tr>
+      <tr>
+        <td><span class="code">source: yelp</span> / <span class="code">yelp-lead</span></td>
+        <td><span class="code">wgh8uia... / TiW9QrY...</span></td>
+        <td><strong>Source Identifier:</strong> Directs lead through masked Yelp Email Relay pipeline.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout success">
+    <strong>Infrastructure Health:</strong> Dedicated Render middleware (<span class="code">https://cg-lead-bridge-ascend.onrender.com</span>) and Direct PIT Token API Upsert (<span class="code">pit-96e543f6...</span>) are live and active.
+  </div>
+
+</body>
+</html>

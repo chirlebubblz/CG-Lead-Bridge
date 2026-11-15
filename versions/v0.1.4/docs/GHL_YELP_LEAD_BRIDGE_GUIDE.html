@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GHL ↔ Yelp Lead Bridge — Client & Operations Guide</title>
+  <style>
+    @page { size: letter; margin: 12mm 14mm 12mm 14mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1e293b;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 12.5px;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 60%, #3b82f6 100%);
+      color: #fff;
+      padding: 22px 26px 18px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .header-pill {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #93c5fd;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 99px;
+      margin-bottom: 8px;
+    }
+    .header h1 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+    .header p  { font-size: 12px; color: #cbd5e1; margin-top: 5px; max-width: 680px; }
+    .header-meta {
+      display: flex; gap: 20px; margin-top: 12px;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.15);
+      font-size: 11px; color: #94a3b8;
+    }
+    .header-meta strong { color: #f1f5f9; }
+
+    /* ─── KPI ROW ─── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 20px; }
+    .kpi {
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-left: 4px solid #2563eb; border-radius: 8px; padding: 11px 13px;
+    }
+    .kpi-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: #64748b; margin-bottom: 3px; }
+    .kpi-value { font-size: 14px; font-weight: 800; color: #0f172a; }
+    .kpi-sub   { font-size: 10.5px; color: #475569; margin-top: 2px; }
+
+    /* ─── SECTIONS ─── */
+    .section { margin-bottom: 20px; page-break-inside: avoid; }
+    .section-title {
+      font-size: 14.5px; font-weight: 700; color: #0f172a;
+      border-bottom: 2px solid #e2e8f0; padding-bottom: 6px;
+      margin-bottom: 11px; display: flex; align-items: center; gap: 8px;
+    }
+    .snum {
+      background: #2563eb; color: #fff; width: 21px; height: 21px;
+      border-radius: 50%; font-size: 11px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+
+    /* ─── FLOW BOX ─── */
+    .flow-box {
+      background: #f1f5f9; border: 1px solid #cbd5e1;
+      border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;
+    }
+    .flow-row { display: flex; align-items: center; justify-content: space-between; }
+    .flow-step {
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+      padding: 10px 11px; width: 17%; text-align: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .flow-step .icon { font-size: 18px; }
+    .flow-step .fl   { font-size: 11px; font-weight: 700; color: #0f172a; margin-top: 3px; }
+    .flow-step .fd   { font-size: 9.5px; color: #64748b; margin-top: 2px; }
+    .arrow { font-size: 15px; color: #94a3b8; font-weight: 700; }
+
+    /* ─── TABLES ─── */
+    table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin: 8px 0 14px; }
+    th { background: #f8fafc; color: #334155; font-weight: 600; text-align: left;
+      padding: 7px 10px; border-bottom: 2px solid #cbd5e1; border-top: 1px solid #e2e8f0; }
+    td { padding: 6px 10px; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+    tr:nth-child(even) td { background: #fcfdfe; }
+
+    /* ─── BADGES ─── */
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .bg  { background: #dcfce7; color: #166534; }
+    .bb  { background: #dbeafe; color: #1e40af; }
+    .bp  { background: #f3e8ff; color: #6b21a8; }
+    .ba  { background: #fef3c7; color: #92400e; }
+
+    /* ─── CALLOUTS ─── */
+    .callout {
+      border-radius: 8px; padding: 11px 13px; margin: 10px 0;
+      font-size: 11.5px; display: flex; gap: 9px; align-items: flex-start;
+    }
+    .ci  { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .cblue  { background: #eff6ff; border-left: 4px solid #2563eb; color: #1e3a8a; }
+    .cgreen { background: #f0fdf4; border-left: 4px solid #16a34a; color: #14532d; }
+    .camber { background: #fffbeb; border-left: 4px solid #f59e0b; color: #78350f; }
+    .cred   { background: #fff1f2; border-left: 4px solid #ef4444; color: #7f1d1d; }
+
+    /* ─── 2-COL GRID ─── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 9px 0; }
+    .fcard { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 13px; }
+    .fcard-title { font-size: 11.5px; font-weight: 700; color: #0f172a; margin-bottom: 5px; }
+    .fcard p, .fcard li { font-size: 11px; color: #475569; line-height: 1.45; }
+    .fcard ul { margin: 6px 0 0 14px; }
+
+    /* ─── STEP-BY-STEP NUMBERED LIST ─── */
+    .steps { list-style: none; margin: 0; padding: 0; }
+    .steps li {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 7px 0; border-bottom: 1px solid #f1f5f9;
+    }
+    .steps li:last-child { border-bottom: none; }
+    .sn {
+      background: #eff6ff; color: #1d4ed8; border-radius: 50%;
+      width: 20px; height: 20px; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+    }
+    .st { font-size: 11.5px; color: #1e293b; }
+    .st strong { color: #0f172a; }
+
+    /* ─── FOOTER ─── */
+    .footer {
+      margin-top: 20px; padding-top: 9px; border-top: 1px solid #e2e8f0;
+      display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-pill">Automated Integration Standard — Production Active</div>
+  <h1>GoHighLevel ↔ Yelp Lead Bridge</h1>
+  <p>Client Operational Blueprint: Real-time lead ingestion, 2-way live chat sync, smart channel routing, and full pipeline lifecycle management. No Yelp app login required.</p>
+  <div class="header-meta">
+    <div>Architecture: <strong>2-Way Middleware Bridge</strong></div>
+    <div>Live Server: <strong>cg-lead-bridge.onrender.com</strong></div>
+    <div>Sync Speed: <strong>&lt; 5 seconds</strong></div>
+    <div>Status: <strong>✅ Production Active</strong></div>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Lead Ingestion</div>
+    <div class="kpi-value">&lt; 5 Sec</div>
+    <div class="kpi-sub">Real-time contact creation in GHL</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">2-Way Chat</div>
+    <div class="kpi-value">100% Unified</div>
+    <div class="kpi-sub">Reply in GHL → delivered to Yelp</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Owner Shield</div>
+    <div class="kpi-value">100% Protected</div>
+    <div class="kpi-sub">Staff emails never matched to leads</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Channel Routing</div>
+    <div class="kpi-value">Smart Dual</div>
+    <div class="kpi-sub">Auto SMS (if phone) or Yelp relay</div>
+  </div>
+</div>
+
+<!-- SECTION 1: FLOW -->
+<div class="section">
+  <div class="section-title"><span class="snum">1</span> End-to-End System Architecture</div>
+  <div class="flow-box">
+    <div class="flow-row">
+      <div class="flow-step">
+        <div class="icon">💬</div>
+        <div class="fl">Yelp Lead</div>
+        <div class="fd">Customer submits quote or message</div>
+      </div>
+      <div class="arrow">➔</div>
+      <div class="flow-step">
+        <div class="icon">🛡️</div>
+        <div class="fl">Bridge Shield</div>
+        <div class="fd">Extracts name, strips footers, blocks owner email</div>
+      </div>
+      <div class="arrow">➔</div>
+      <div class="flow-step">
+        <div class="icon">🗂️</div>
+        <div class="fl">GHL Intake</div>
+        <div class="fd">Contact + opportunity created in Yelp Pipeline</div>
+      </div>
+      <div class="arrow">➔</div>
+      <div class="flow-step">
+        <div class="icon">⚡</div>
+        <div class="fl">Auto-Reply</div>
+        <div class="fd">90s buffer → SMS or Yelp relay chat</div>
+      </div>
+      <div class="arrow">➔</div>
+      <div class="flow-step">
+        <div class="icon">🔄</div>
+        <div class="fl">2-Way Live</div>
+        <div class="fd">Team replies in GHL, customer sees on Yelp</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: LEAD INGESTION -->
+<div class="section">
+  <div class="section-title"><span class="snum">2</span> Lead Ingestion &amp; Data Extraction</div>
+  <p style="font-size:11.5px;color:#475569;margin-bottom:9px;">
+    When a homeowner submits a quote request on Yelp, every field is captured automatically and stored in GHL before your team even sees the notification.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:22%">Extracted Field</th>
+        <th style="width:28%">GHL Custom Field</th>
+        <th>What Your Team Sees</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Customer Name</strong></td><td><span class="badge bb">contact.name</span></td><td>Auto-extracted — overrides masked "Yelp Inbox" labels.</td></tr>
+      <tr><td><strong>Service Type</strong></td><td><span class="badge bp">yelp_service_type</span></td><td>Deep Clean, Move-In/Out, Standard Recurring, Post-Construction.</td></tr>
+      <tr><td><strong>Bedrooms &amp; Bathrooms</strong></td><td><span class="badge bp">yelp_bedrooms / yelp_bathrooms</span></td><td>Exact room counts from the homeowner's Yelp questionnaire.</td></tr>
+      <tr><td><strong>Cleaning Frequency</strong></td><td><span class="badge bp">yelp_cleaning_frequency</span></td><td>One-time, Weekly, Every 2 weeks, Monthly.</td></tr>
+      <tr><td><strong>Customer Notes</strong></td><td><span class="badge bp">yelp_notes__customer_request</span></td><td>Full text of special instructions, pets, square footage, focus areas.</td></tr>
+      <tr><td><strong>Phone Number</strong></td><td><span class="badge bg">contact.phone</span></td><td>Direct cell number (only if customer chose to share it).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout cgreen">
+    <span class="ci">🛡️</span>
+    <div><strong>Built-in Owner Email Shield:</strong> Yelp notification emails contain the manager/owner email in the footer. Our bridge automatically blacklists internal and staff emails so lead cards are never accidentally attached to your own contact profile.</div>
+  </div>
+</div>
+
+<!-- SECTION 3: AUTO-RESPONDER + 2-WAY CHAT -->
+<div class="section">
+  <div class="section-title"><span class="snum">3</span> Smart Auto-Responder &amp; 2-Way Live Chat</div>
+
+  <div class="two-col" style="margin-bottom:12px;">
+    <div class="fcard">
+      <div class="fcard-title">⚡ The 90-Second Smart Auto-Responder</div>
+      <p>After a lead arrives, the system waits 90 seconds to allow Yelp to pass the customer's phone number. It then routes automatically:</p>
+      <ul style="margin-top:7px;">
+        <li><strong>Phone provided:</strong> Instant SMS greeting asking for square footage and preferred days.</li>
+        <li style="margin-top:4px;"><strong>No phone (Yelp relay only):</strong> Instant response sent directly into the customer's Yelp chat — no phone required.</li>
+      </ul>
+    </div>
+    <div class="fcard">
+      <div class="fcard-title">💬 True 2-Way Live Chat — No Yelp Login Needed</div>
+      <p>Your staff never needs the Yelp Business app or shared login passwords:</p>
+      <ul style="margin-top:7px;">
+        <li>Yelp customer messages arrive as <strong>Live Chat</strong> bubbles in GHL Conversations.</li>
+        <li style="margin-top:4px;">Replies typed in GHL are delivered back to the customer's Yelp app within 5 seconds.</li>
+        <li style="margin-top:4px;">Complete conversation history stays in one place — GHL.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- HOW TO REPLY BOX - THE KEY INSTRUCTION -->
+  <div class="callout cblue">
+    <span class="ci">💡</span>
+    <div>
+      <strong>How to Reply to a Yelp Lead Inside GHL — Step by Step:</strong>
+      <ol style="margin:7px 0 0 16px; font-size:11px; line-height:1.7;">
+        <li>Open <strong>GoHighLevel → Conversations</strong> and find the lead's card (it will appear as a <strong>Live Chat</strong> message).</li>
+        <li>In the message composer at the bottom of the thread, click the channel dropdown and select <strong>Email</strong> — this routes your reply through Yelp's secure masked relay address.</li>
+        <li><strong>Do NOT enter a Subject line.</strong> Leave it blank. Simply type your message in the body field.</li>
+        <li>Hit <strong>Send</strong>. Your message is automatically delivered into the customer's Yelp chat interface within seconds.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="callout camber" style="margin-top:8px;">
+    <span class="ci">⚠️</span>
+    <div><strong>Testing Guardrail:</strong> When testing, always close <strong>biz.yelp.com</strong> and the Yelp for Business mobile app first. Yelp detects active sessions and suppresses email notifications — which stops Zapier from triggering and the bridge from receiving anything.</div>
+  </div>
+</div>
+
+<!-- SECTION 4: PIPELINE -->
+<div class="section">
+  <div class="section-title"><span class="snum">4</span> Dedicated Yelp Leads Pipeline</div>
+  <p style="font-size:11.5px;color:#475569;margin-bottom:8px;">
+    Every Yelp inquiry lands automatically on a dedicated visual Kanban board. Your team drags cards as conversations progress — full visibility at a glance.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:26%">Stage</th>
+        <th style="width:14%">Trigger</th>
+        <th>Purpose &amp; Sales Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>1. New Leads</strong></td><td><span class="badge bg">Auto</span></td><td>Lead arrives. Auto-responder fires. Awaiting first personalized reply from your team.</td></tr>
+      <tr><td><strong>2. No Answer</strong></td><td><span class="badge ba">Manual</span></td><td>Reached out but customer hasn't responded. Follow up with a call or text.</td></tr>
+      <tr><td><strong>3. Quoted</strong></td><td><span class="badge bb">Manual</span></td><td>Formal estimate or price has been shared via chat, email, or phone.</td></tr>
+      <tr><td><strong>4. Follow Up (Manual)</strong></td><td><span class="badge ba">Manual</span></td><td>Active lead — needs a personalized nudge, rebooking, or discount offer.</td></tr>
+      <tr><td><strong>5. Follow Up (Automated)</strong></td><td><span class="badge bp">Auto/Manual</span></td><td>Enrolled in a timed sequence of gentle reminders (3–5 day drip).</td></tr>
+      <tr><td><strong>6. Interested, Not Booked</strong></td><td><span class="badge bb">Manual</span></td><td>Customer interested but timing not right (e.g. wants service next month).</td></tr>
+      <tr><td><strong>7. Not Qualified</strong></td><td><span class="badge ba">Manual</span></td><td>Outside service area, wrong scope, or lead declined pricing.</td></tr>
+      <tr><td><strong>8. Closed Won ✅</strong></td><td><span class="badge bg">Goal</span></td><td><strong>Job booked!</strong> Customer confirmed, scheduled, and handed to operations.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 5: BEST PRACTICES -->
+<div class="section">
+  <div class="section-title"><span class="snum">5</span> Team Best Practices</div>
+  <div class="two-col">
+    <div class="fcard">
+      <div class="fcard-title">⏱️ Reply in Under 5 Minutes</div>
+      <p>The auto-responder acknowledges the lead instantly, but a real personalized quote from a human within 5 minutes converts at over <strong>3× the rate</strong> of slower follow-ups. Speed wins.</p>
+    </div>
+    <div class="fcard">
+      <div class="fcard-title">📱 Capture Phone Number Early</div>
+      <p>If the lead has no phone, make getting their number your first goal: <em>"To prepare your flat-rate quote, what's the best cell number and address?"</em></p>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 6: LIVE SYSTEM REFERENCE -->
+<div class="section">
+  <div class="section-title"><span class="snum">6</span> Live System Reference</div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%">Resource</th>
+        <th>Value / URL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Render Bridge URL</strong></td><td>https://cg-lead-bridge.onrender.com</td></tr>
+      <tr><td><strong>Inbound Webhook</strong></td><td>POST https://cg-lead-bridge.onrender.com/webhook/yelp</td></tr>
+      <tr><td><strong>Outbound Delivery Webhook</strong></td><td>POST https://cg-lead-bridge.onrender.com/webhook/ghl-delivery</td></tr>
+      <tr><td><strong>Health Check</strong></td><td>GET https://cg-lead-bridge.onrender.com/health</td></tr>
+      <tr><td><strong>Live Logs</strong></td><td>GET https://cg-lead-bridge.onrender.com/logs</td></tr>
+      <tr><td><strong>GitHub Repository</strong></td><td>https://github.com/chirlebubblz/CG-Lead-Bridge (branch: main)</td></tr>
+      <tr><td><strong>Jacksonville Location ID</strong></td><td>EKXbBmGEV6hnLQFQRPc7</td></tr>
+      <tr><td><strong>Capable Clean Location ID</strong></td><td>s94e80clit6bCL9VBWgl</td></tr>
+    </tbody>
+  </table>
+  <div class="callout cblue" style="margin-top:4px;">
+    <span class="ci">ℹ️</span>
+    <div>This single Render bridge is <strong>multi-tenant</strong> — one server handles all client locations simultaneously. To add a new client location, include their <code>location_id</code> in the Zapier payload and add their GHL token to Render environment variables as <code>GHL_TOKEN_&lt;LOCATION_ID&gt;</code>.</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div>Integration: GoHighLevel ↔ Yelp Lead Bridge</div>
+  <div>Standard: Jacksonville Template Architecture v2</div>
+  <div>Confidential · Proprietary Client Runbook</div>
+</div>
+
+</body>
+</html>
