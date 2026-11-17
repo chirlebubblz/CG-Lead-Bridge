@@ -107,6 +107,8 @@ const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
   '19jBWYeRsrzDq6Oe1nth': 'b57e3d68-e8ef-4af4-adcc-edfc88b0017b',
   // Rapids Cleaning Services
   '8duUHE4ENvhQTCtg3z6o': '42a1058e-0dbf-4dc8-bed5-d88e9d442d47',
+  // Maid Co Cleaning
+  'IoU6ToP3okYmCe2CKNly': 'a4f27483-8bda-4ec1-872d-b6b12b6bde0f',
 };
 
 export class GHLService {
