@@ -192,3 +192,4 @@ In high-volume or multi-account setups, Yelp "Phone Availability" webhook events
 | **Mum's Cleaning Services Chicago** | `https://cg-lead-bridge.onrender.com` | `YVtPYdLotWLwuy5AA8Vv` |
 | **Ya'll Maid Austin** | `https://cg-lead-bridge-austin.onrender.com` | `19jBWYeRsrzDq6Oe1nth` |
 | **Rapids Cleaning Services** | `https://cg-lead-bridge.onrender.com` | `8duUHE4ENvhQTCtg3z6o` |
+| **Maid Co Cleaning** | `https://cg-lead-bridge.onrender.com` | `IoU6ToP3okYmCe2CKNly` |

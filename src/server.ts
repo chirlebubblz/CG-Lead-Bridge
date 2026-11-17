@@ -5,9 +5,22 @@ import { GHLService } from './services/ghl';
 import { ThumbtackService } from './services/thumbtack';
 import { CronService } from './services/cron';
 import { TokenStore } from './services/token-store';
+import { SlackWebhookService } from './services/slack';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
+app.use('/webhook/slack', express.urlencoded({
+  extended: true,
+  verify: (req: any, _res, buf) => {
+    if (!req.rawBody) {
+      req.rawBody = buf;
+    }
+  },
+}));
 
 // Root & Health Status
 app.get('/', (req: Request, res: Response) => {
@@ -121,6 +134,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         { pattern: /sunny\s*side\s*clean/i, locationId: 'WOwi6fpdaZavuqHU8Rux', name: 'Sunny Side Clean Team' },
         { pattern: /(?:ya'?ll|y'?all)\s*maid/i, locationId: '19jBWYeRsrzDq6Oe1nth', name: "Ya'll Maid Austin" },
         { pattern: /rapids\s*cleaning/i, locationId: '8duUHE4ENvhQTCtg3z6o', name: 'Rapids Cleaning Services' },
+        { pattern: /maid\s*co/i, locationId: 'IoU6ToP3okYmCe2CKNly', name: 'Maid Co Cleaning' },
       ];
 
       const combinedText = `${subject} ${directMessage}`;
@@ -177,7 +191,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices') || email.includes('maidcocleaningservices'))) {
         email = undefined;
       }
       if (!email && leadId) {
@@ -431,6 +445,7 @@ app.post('/contacts/upsert', async (req: Request, res: Response) => {
       'xofbiSRUGxxg2jFbVlRr', // Mum's Cleaning Services Chicago
       '77hnROLGu93J1yZFvQvq', // Ya'll Maid Austin
       'owoZ7ZXYbiQeM8dla8AI', // Rapids Cleaning Service
+      'ISkhiu9o4RRQ5O8VxgRL', // Maid Co Cleaning
     ]);
 
     if (!leadId && Array.isArray(payload.customFields)) {
@@ -631,7 +646,7 @@ app.post('/webhook/ghl-delivery', async (req: Request, res: Response) => {
           if (contact) {
             // Check custom fields
             const cf = contact.customFields || [];
-            const yelpField = cf.find((f: any) => f.key === 'yelp_lead_id' || f.id === 'xofbiSRUGxxg2jFbVlRr' || f.id === '77hnROLGu93J1yZFvQvq');
+            const yelpField = cf.find((f: any) => f.key === 'yelp_lead_id' || f.id === 'xofbiSRUGxxg2jFbVlRr' || f.id === '77hnROLGu93J1yZFvQvq' || f.id === 'ISkhiu9o4RRQ5O8VxgRL');
             if (yelpField?.value) {
               yelpLeadId = yelpField.value;
             }
@@ -660,6 +675,67 @@ app.post('/webhook/ghl-delivery', async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     addLog('[GHL Delivery] ❌ Error sending to Yelp', { error: err.response?.data || err.message });
+  }
+});
+
+/**
+ * 2B. 24/7 Inbound Slack Events API / Outgoing Webhook / Zapier Listener
+ * Supports Slack url_verification, event_callback (message / app_mention), and Outgoing/Zapier payloads
+ * and forwards matching alerts directly to Telegram 24/7.
+ */
+app.post('/webhook/slack', async (req: Request, res: Response) => {
+  try {
+    const rawBody = (req as any).rawBody as Buffer | undefined;
+    const verification = SlackWebhookService.verifySlackRequest({
+      headers: req.headers as Record<string, string | string[] | undefined>,
+      rawBody,
+      body: req.body,
+    });
+
+    if (!verification.valid) {
+      addLog('[Slack Webhook] Rejected unverified request', { reason: verification.reason });
+      res.status(401).json({ ok: false, error: verification.reason });
+      return;
+    }
+
+    const parsed = SlackWebhookService.parseIncomingPayload(req.body);
+
+    if (parsed.kind === 'challenge') {
+      addLog('[Slack Webhook] Responded to Slack url_verification challenge');
+      res.status(200).json({ challenge: parsed.challenge });
+      return;
+    }
+
+    // Acknowledge immediately so Slack does not time out (3s limit) and retry
+    res.status(200).json({ ok: true });
+
+    if (parsed.kind === 'ignored') {
+      addLog('[Slack Webhook] Ignored event', { reason: parsed.reason });
+      return;
+    }
+
+    if (SlackWebhookService.isDuplicate(parsed.alert)) {
+      addLog('[Slack Webhook] Skipped duplicate event', {
+        eventId: parsed.alert.eventId,
+        channelId: parsed.alert.channelId,
+        ts: parsed.alert.ts,
+      });
+      return;
+    }
+
+    const sent = await SlackWebhookService.sendTelegramAlert(parsed.alert);
+    addLog('[Slack Webhook] Forwarded Slack message to Telegram', {
+      sent,
+      source: parsed.alert.source,
+      channel: parsed.alert.channelName || parsed.alert.channelId,
+      user: parsed.alert.userName || parsed.alert.userId,
+      preview: parsed.alert.text.slice(0, 80),
+    });
+  } catch (err: any) {
+    addLog('[Slack Webhook Error]', { error: err?.response?.data || err?.message || String(err) });
+    if (!res.headersSent) {
+      res.status(500).json({ ok: false, error: err?.message || 'Slack webhook error' });
+    }
   }
 });
 

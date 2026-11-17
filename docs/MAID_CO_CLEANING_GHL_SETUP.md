@@ -46,58 +46,80 @@ Standardized lifecycle tags have been provisioned:
 
 ## 3. Pipelines & Opportunity Routing
 
-Target Pipeline: **`Pipeline 2 - New Leads`** (`uNUa0LrvRlWK93DFrbPp`)
+Target Pipeline: **`Pipeline 6 - Yelp Leads Pipeline`** (`q2zWSOq62ky1oZZpQMNQ`)
 
 | Stage | Stage ID | Yelp Ingestion Role |
 | :--- | :--- | :--- |
-| **New Leads** | `e06be4d1-635e-4438-aed7-e650b6a54a05` | **Initial landing stage for every new Yelp lead** |
-| **No Answer** | `10ccc29e-73e4-4b2f-b3a0-cff23d04bd6b` | When customer doesn't respond to greeting |
-| **Quoted** | `f2cd58d0-178f-45b4-af4d-7c2d66ed5635` | Moved when quote is delivered |
-| **Follow Up (Manual)** | `3e61f1c8-0c2a-4c4f-9227-9108e52d05e1` | Rep manual follow up |
-| **Follow Up (Automated)** | `8783a2c9-1c03-4ecd-86f4-1922a55d55e3` | Drip sequence |
-| **Interested but not booked**| `0f73b9e5-4d44-481e-bd7a-b7c6c21ff9b9` | Active interest |
-| **Not Qualified** | `7483ab51-629c-403b-bdca-3fffa4905eaa` | Outside service area / declined |
+| **New Leads** | `4bc35075-b88c-4433-98b4-b55b5a78bbeb` | **Initial landing stage for every new Yelp lead** |
+| **No Answer** | `b2aa4fb7-bcd7-40ef-af6e-9dc61d38eaf6` | When customer doesn't respond to greeting |
+| **Quoted** | `de029f16-e8dc-4713-8b45-4665c6d79bae` | Moved when quote is delivered |
+| **Follow Up (Manual)** | `6596def2-9508-4085-b5fa-f0b2432c6018` | Rep manual follow up |
+| **Follow Up (Automated)** | `23252d1b-b1df-4dd4-bb2f-99e8bad00b11` | Drip sequence |
+| **Interested but not booked**| `d660c584-7c2f-40c9-82e3-1eba576c5843` | Active interest |
+| **Not Qualified** | `6e592782-b3e1-4bdb-ba99-a88dbe6140f8` | Outside service area / declined |
+| **Closed Won** | `4ed0bd18-79b6-4124-9198-7ded2d464f41` | Booking confirmed |
 
 ---
 
-## 4. Workflow Blueprint (Folder: `(Yelp Leads)`)
+## 4. Workflow Blueprint (Folder: `(Yelp Leads)`) — Updated Jacksonville Standard
 
-Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
+Under **Automation ➔ Workflows ➔ Folder: `(Yelp Leads)`**:
 
-### Workflow 1: `(Yelp Leads) Inbound Lead Intake & Auto-Responder`
+> **🚨 Production Standard Update (Pure Email Relay — Zero Outbound Customer SMS):**  
+> All customer-facing messages route **100% via Email (`leadsapi+...`)**. When sent via the Yelp email relay, Yelp converts it directly into a native in-app chat bubble inside the customer's Yelp app with 100% delivery.  
+> Direct customer SMS from GHL is strictly avoided to eliminate A2P 10DLC compliance/carrier filtering risks and unsolicited text complaints. The phone number is preserved on the contact record for sales reps to call/text manually.
+
+### Workflow 1: `(Yelp Leads) Master Inbound Intake & Auto-Followup`
+> **⏳ Pending Setup Note:** Workflow 1 `(Yelp Leads) Master Inbound Intake & Auto-Followup` still needs to be created in the GHL UI. Once created, add its Workflow ID for `IoU6ToP3okYmCe2CKNly` to `KNOWN_INTAKE_WORKFLOWS` in `src/services/ghl.ts`.
+
+- **Workflow Settings:** Turn **Stop on Response = ON**
 - **Trigger:** Contact Tag Added ➔ `source: yelp` (or `yelp-lead`)
-- **Action 1: Create/Update Opportunity:**
-  - Pipeline: `Pipeline 2 - New Leads` (`uNUa0LrvRlWK93DFrbPp`)
-  - Stage: `New Leads` (`e06be4d1-635e-4438-aed7-e650b6a54a05`)
+- **Step 1: Create/Update Opportunity:**
+  - Pipeline: `Pipeline 6 - Yelp Leads Pipeline` (`q2zWSOq62ky1oZZpQMNQ`)
+  - Stage: `New Leads` (`4bc35075-b88c-4433-98b4-b55b5a78bbeb`)
   - Opportunity Name: `Yelp - {{contact.name}}`
-- **Action 2: Wait (90 Seconds):**
-  - Essential buffer: allows Yelp's companion `Phone Availability` zap/event to arrive and populate the phone number before sending the first response.
-- **Action 3: If/Else Condition (`Channel Routing`):**
-  - **Branch A: Has Phone Number** (`contact.phone is not empty`)
-    - **Action:** Send SMS:
-      > *"Hi {{contact.first_name}}, thanks for reaching out to Maid Co Cleaning on Yelp! We received your request for a {{contact.yelp_service_type}}. What is your approximate square footage and preferred days for your cleaning?"*
-    - **Action:** Add Tag: `yelp-phone-captured`
-  - **Branch B: Yelp Masked Email Only** (`contact.phone is empty`)
-    - **Action:** Send Email:
-      - To: `{{contact.email}}` (`leadsapi+...` relay)
-      - Subject: `Your Cleaning Request - Maid Co Cleaning`
-      - Body (Plain Text):
+- **Step 2 (Bed & Bath Guardrail If/Else Condition):**
+  - **Branch 1: Both Bed & Bath Available** (`contact.yelp_bedrooms is not empty` AND `contact.yelp_bathrooms is not empty`)
+    - **Action:** Send Email to `{{contact.email}}` (`leadsapi+...` relay):
+      - **Subject:** `Your Cleaning Request - Maid Co Cleaning`
+      - **Body (Plain Text):**
         > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Maid Co Cleaning on Yelp! We received your request for a {{contact.yelp_service_type}} ({{contact.yelp_bedrooms}} bed / {{contact.yelp_bathrooms}} bath).\n\nTo give you an accurate quote, what is your approximate square footage and ideal time frame? You can also reply directly here or call/text us directly at (918) 992-7702."*
-    - **Action:** Add Tag: `yelp-no-phone`
-- **Action 4: Internal Notification:**
+  - **Branch 2: Fallback (Either or Both Missing - Default Else):**
+    - **Action:** Send Email to `{{contact.email}}` (`leadsapi+...` relay):
+      - **Subject:** `Your Cleaning Request - Maid Co Cleaning`
+      - **Body (Plain Text):**
+        > *"Hi {{contact.first_name}},\n\nThank you for reaching out to Maid Co Cleaning on Yelp! We received your cleaning inquiry.\n\nCould you let us know your approximate square footage, number of bedrooms/bathrooms, and preferred days for your cleaning? You can reply directly here or call/text us directly at (918) 992-7702."*
+- **Step 3: Wait (90 Seconds):**
+  - Essential buffer: allows Yelp's companion Zap 2 (`Phone Availability`) to match and enrich the contact card with their phone number before alerting the team.
+- **Step 4: Internal Notification to Owner / Sales Team:**
   - Send SMS to Caleb Phibbs (`+19189927702`):
-    > *"New Yelp Lead: {{contact.name}} - {{contact.yelp_service_type}} ({{contact.phone}})"*
+    > *"New Yelp Lead: {{contact.name}} - {{contact.yelp_service_type}} | Phone: {{contact.phone}} | Bed/Bath: {{contact.yelp_bedrooms}}/{{contact.yelp_bathrooms}}"*
+- **Step 5: Wait (24 Hours):**
+  - *(Stop on Response = ON ensures this halts immediately if lead responds)*
+- **Step 6: Update Opportunity:**
+  - Move Stage to `No Answer` (`b2aa4fb7-bcd7-40ef-af6e-9dc61d38eaf6`)
+- **Step 7: Send 24h Follow-up Email #1 via Yelp Relay:**
+  - **Subject:** `Re: Your Cleaning Request - Maid Co Cleaning`
+  - **Body (Plain Text):**
+    > *"Hi {{contact.first_name}}, just wanted to follow up on your Yelp inquiry from yesterday! Did you still need help with your cleaning? Let us know your preferred timing and we'll get your quote ready."*
+- **Step 8: Wait (48 Hours):**
+- **Step 9: Update Opportunity:**
+  - Move Stage to `Follow Up (Automated)` (`23252d1b-b1df-4dd4-bb2f-99e8bad00b11`)
+- **Step 10: Send Final 72h Check-in Email #2 via Yelp Relay:**
+  - **Subject:** `Checking in from Maid Co Cleaning`
+  - **Body (Plain Text):**
+    > *"Hi {{contact.first_name}}, checking in one last time regarding your cleaning request. If you still need service this week or would like to schedule for later, feel free to reply here or call/text us at (918) 992-7702. We're happy to assist!"*
 
 ---
 
-## 5. Zapier Mapping Guide (If using Zapier)
+## 5. Zapier Mapping Guide (The Defensive Guardrail Standard)
 
-### Zap 1: Yelp Leads ➔ GoHighLevel
+### Zap 1: Yelp Leads ➔ GoHighLevel (New Intake)
 - **Trigger:** Yelp Leads ➔ `New Lead`
 - **Action:** LeadConnector ➔ `Create/Update Contact`
   - **Location:** `IoU6ToP3okYmCe2CKNly` (Maid Co Cleaning)
   - **First Name / Last Name:** Lead Name
-  - **Email:** `leadsapi+...` (Temporary Email from Yelp)
+  - **Email:** `Temporary Email Address` (`leadsapi+...`)
   - **Tags:** `source: yelp, yelp-lead`
   - **Yelp Service Type:** `Project Job Names`
   - **Yelp Bedrooms:** Survey Answer [Bedrooms]
@@ -106,9 +128,37 @@ Create a folder in **Automation ➔ Workflows** named **`(Yelp Leads)`**.
   - **Yelp Notes / Customer Request:** `Project Summary` / Survey text
   - **Yelp Lead ID:** `Lead ID`
 
-### Zap 2 (Companion): Yelp Phone Availability ➔ Update Contact
-- **Trigger:** Yelp Leads ➔ `Phone Availability`
-- **Action:** LeadConnector ➔ `Create/Update Contact`
-  - **Email:** `leadsapi+...` (matches existing record)
-  - **Phone:** `Phone Number` (from Yelp step 1)
-  - **Tags:** `yelp-phone-captured`
+### Zap 2: Phone Availability (Golden Master: Find ➔ Filter ➔ Update Pattern)
+To prevent accidental orphan contacts (e.g. creating a blank "Yelp Customer" record when a phone event fires before Zap 1 finishes), Zap 2 must strictly follow the guarded pattern:
+- **Step 1 (Trigger):** Yelp Leads ➔ `Phone Availability`
+- **Step 2 (Action):** LeadConnector ➔ `Find Contact`
+  - Search Field: `Email` = `Temporary Email Address` (`leadsapi+...`)
+  - Consider success if nothing found = `Yes`
+- **Step 3 (Filter):** Filter by Zapier ➔ Only continue if `2. ID` (Contact ID) **Exists**
+- **Step 4 (Action):** LeadConnector ➔ `Update Contact`
+  - Contact: `Custom` ➔ `2. ID`
+  - Phone: `Phone Number`
+  - Tags: `yelp-phone-captured`
+  - Custom Field: `Yelp Phone Captured` = `Yes`
+
+### Zap 3: Inbound Chat Webhook (Render Server Bridge)
+- **Trigger:** `Email by Zapier` ➔ `New Inbound Email`
+- **Action:** `Webhooks by Zapier` ➔ `POST`:
+  - **URL:** `https://cg-lead-bridge.onrender.com/webhook/yelp`
+  - **Payload Type:** `json`
+  - **Data:**
+    - `name`: `1. From Name`
+    - `subject`: `1. Subject`
+    - `message`: `1. Body Plain`
+    - `email`: *(Leave empty)*
+    - `locationId`: `IoU6ToP3okYmCe2CKNly` *(or omitted / auto-detected via `BRAND_LOCATION_MAP`)*
+
+---
+
+## 6. Gmail Forwarding Standard
+In the client's business Gmail receiving Yelp alerts (`hello@maidcocleaningservices.com`):
+- **Settings ➔ Forwarding:** Add the Zapier inbound email address and verify with the 9-digit confirmation code.
+- **Settings ➔ Filters:**
+  - `from: yelp.com`
+  - `has the words: Maid Co`
+  - **Action:** Forward to the Zapier inbound email address.

@@ -31,6 +31,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   '19jBWYeRsrzDq6Oe1nth': 'pit-57efb428-1952-48f1-b70b-47f681941579',
   // Rapids Cleaning Services
   '8duUHE4ENvhQTCtg3z6o': 'pit-us-19731ed6-4097-48e4-89aa-934c295b91d0',
+  // Maid Co Cleaning
+  'IoU6ToP3okYmCe2CKNly': 'pit-93ff841b-eab3-4bb0-9df0-0566d13ee729',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -78,6 +80,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
   '8duUHE4ENvhQTCtg3z6o': {
     pipelineId: 'bHG1epKxLmE812KHzc78',
     stageId: 'b7c17a87-4ba9-4fb2-b73e-a4b63e308d42', // New Leads
+  },
+  // Maid Co Cleaning
+  'IoU6ToP3okYmCe2CKNly': {
+    pipelineId: 'q2zWSOq62ky1oZZpQMNQ',
+    stageId: '4bc35075-b88c-4433-98b4-b55b5a78bbeb', // New Leads
   },
 };
 
