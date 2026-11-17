@@ -26,5 +26,17 @@ export const config = {
   thumbtack: {
     accessToken: process.env.THUMBTACK_ACCESS_TOKEN || '',
     businessId: process.env.THUMBTACK_BUSINESS_ID || '',
+  },
+
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    chatId: process.env.TELEGRAM_CHAT_ID || '',
+  },
+
+  slack: {
+    signingSecret: process.env.SLACK_SIGNING_SECRET || '',
+    verificationToken: process.env.SLACK_VERIFICATION_TOKEN || '',
+    botToken: process.env.SLACK_BOT_TOKEN || '',
+    workspaceUrl: process.env.SLACK_WORKSPACE_URL || 'https://app.slack.com/client/T0AMMD3GYHX',
   }
 };
