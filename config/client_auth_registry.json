@@ -1,0 +1,143 @@
+{
+  "teamId": "T0AMMD3GYHX",
+  "slackBaseUrl": "https://app.slack.com/client/T0AMMD3GYHX",
+  "ignoredSenders": [
+    "Jordan E. Sabalo",
+    "Slackbot"
+  ],
+  "ignoredCodes": [
+    "40170387",
+    "10112131"
+  ],
+  "clients": [
+    {
+      "id": "maid-co-cleaning",
+      "clientName": "Caleb Phibbs",
+      "businessName": "Maid Co Cleaning Services",
+      "slackChannelId": "C0B9HPK2V9V",
+      "slackChannelName": "caleb-maidcocleaningservices-tulsa-and-okc",
+      "senderKeywords": ["caleb"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {
+        "zapier": {
+          "email": "Hello@Maidcocleaningservices.com",
+          "passwordEnv": "CALEB_ZAPIER_PASSWORD",
+          "loginUrl": "https://zapier.com/app/login"
+        }
+      },
+      "ghlLocationId": "IoU6ToP3okYmCe2CKNly"
+    },
+    {
+      "id": "poppy-pro-cleaner",
+      "clientName": "Tyler Rider",
+      "businessName": "Poppy Pro Cleaner",
+      "slackChannelId": "C0BLV4S5GG4",
+      "slackChannelName": "tyler-poppy-pro-cleaner-greenville-charleston",
+      "senderKeywords": ["tyler"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "n1jnBtlfzNKJC4BdrN2y"
+    },
+    {
+      "id": "brilliant-cleans",
+      "clientName": "Kyle Kope",
+      "businessName": "Brilliant Cleans Brooklyn",
+      "slackChannelId": "C0CG3DYBKRT",
+      "slackChannelName": "kyle-brilliant-cleans-brooklyn",
+      "senderKeywords": ["kyle"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {}
+    },
+    {
+      "id": "jacksonville-cleaning",
+      "clientName": "Zach",
+      "businessName": "Jacksonville Cleaning Co",
+      "slackChannelId": "C0BCB50DF6J",
+      "slackChannelName": "zach-jacksonvillecleaningco",
+      "senderKeywords": ["zach"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "EKXbBmGEV6hnLQFQRPc7"
+    },
+    {
+      "id": "rapids-cleaning",
+      "clientName": "Zach Kubiak",
+      "businessName": "Rapids Cleaning Services",
+      "slackChannelId": "C0AMCDPFASG",
+      "slackChannelName": "zach-rapidcleaningservices",
+      "senderKeywords": ["zach"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {
+        "zapier": {
+          "email": "zach@rapidscleaningservices.com",
+          "loginUrl": "https://zapier.com/app/login"
+        }
+      },
+      "ghlLocationId": "8duUHE4ENvhQTCtg3z6o"
+    },
+    {
+      "id": "capable-clean",
+      "clientName": "Brendon",
+      "businessName": "Capable Clean",
+      "slackChannelId": "C0BSZHRMWMS",
+      "slackChannelName": "brendon-capableclean",
+      "senderKeywords": ["brendon"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "s94e80clit6bCL9VBWgl"
+    },
+    {
+      "id": "ascend-cleaning",
+      "clientName": "Sean",
+      "businessName": "Ascend Cleaning LA",
+      "slackChannelId": "C0AMCDCPCGL",
+      "slackChannelName": "sean-ascendcleaning-losangeles",
+      "senderKeywords": ["sean"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "IdJoWa68hD3nVj45Fv7f"
+    },
+    {
+      "id": "puget-sound-cleaners",
+      "clientName": "Edwin",
+      "businessName": "Puget Sound Cleaners",
+      "slackChannelId": "C0B9VESC84B",
+      "slackChannelName": "edwin-pugetsoundcleaners-seattle",
+      "senderKeywords": ["edwin"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "MucxtGIfmvLViGQWD0CG"
+    },
+    {
+      "id": "propeach-sparkle-squad",
+      "clientName": "Mark Cook II & Wes",
+      "businessName": "ProPeach & Sparkle Squad",
+      "slackChannelId": "C0B4GUQJDC0",
+      "slackChannelName": "mark-and-wes-propeach-and-sparkle-squad",
+      "senderKeywords": ["mark", "wes"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {},
+      "ghlLocationId": "ThUMNqsKmDfYKMF0jsBb"
+    },
+    {
+      "id": "brightleaf-yelp",
+      "clientName": "Rob Nolen",
+      "businessName": "Brightleaf",
+      "slackChannelId": "C0CD99E1563",
+      "slackChannelName": "rob-brightleaf-yelp",
+      "senderKeywords": ["rob"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {}
+    },
+    {
+      "id": "yelp-partner",
+      "clientName": "Sergio Silesky",
+      "businessName": "Yelp Partner",
+      "slackChannelId": "C0CHHT4S82J",
+      "slackChannelName": "yelp-partner",
+      "senderKeywords": ["sergio"],
+      "services": ["zapier", "ghl", "yelp"],
+      "credentials": {}
+    }
+  ]
+}

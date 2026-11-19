@@ -33,6 +33,8 @@ const KNOWN_TOKENS: Record<string, string> = {
   '8duUHE4ENvhQTCtg3z6o': 'pit-us-19731ed6-4097-48e4-89aa-934c295b91d0',
   // Maid Co Cleaning
   'IoU6ToP3okYmCe2CKNly': 'pit-93ff841b-eab3-4bb0-9df0-0566d13ee729',
+  // Poppy Pro Cleaning
+  'n1jnBtlfzNKJC4BdrN2y': 'pit-us-aa5b40ae-0b19-403c-b694-c5a695e0f1f7',
 };
 
 const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> = {
@@ -500,25 +502,55 @@ export class GHLService {
   }
 
   /**
-   * Find an existing contact or create one if not found
+   * Update custom fields on an existing GHL contact via PUT /contacts/:contactId
    */
-  public static async findOrCreateContact(details: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    leadId: string;
-    source?: string;
-    locationId?: string;
-    isNewLead?: boolean;
-    customFields?: Array<{ id?: string; key?: string; value: any }>;
-  }): Promise<string> {
-    const locId = details.locationId || config.ghl.locationId;
-    const headers = this.getHeaders(locId);
+  public static async updateContactCustomFields(
+    contactId: string,
+    locationId: string,
+    customFields: Array<{ id?: string; key?: string; value: any }>
+  ): Promise<boolean> {
+    if (!contactId || !Array.isArray(customFields) || customFields.length === 0) {
+      return false;
+    }
 
+    const filtered = customFields.filter(
+      (f) => f && (f.key || f.id) && f.value !== undefined && f.value !== null && String(f.value).trim() !== ''
+    );
+    if (filtered.length === 0) {
+      return false;
+    }
+
+    try {
+      await axios.put(
+        `${config.ghl.apiUrl}/contacts/${contactId}`,
+        { customFields: filtered },
+        { headers: this.getHeaders(locationId), timeout: 10000 }
+      );
+      console.log(`[GHLService] Updated ${filtered.length} custom field(s) on contact ${contactId} (loc: ${locationId})`);
+      return true;
+    } catch (err: any) {
+      console.warn(`[GHLService] Failed to update custom fields on contact ${contactId}:`, err.response?.data || err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Resolve an existing contact ID across cache, recent contacts, duplicate search, and name search
+   */
+  private static async resolveExistingContactId(
+    locId: string,
+    headers: Record<string, string>,
+    details: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      leadId: string;
+      customFields?: Array<{ id?: string; key?: string; value: any }>;
+    }
+  ): Promise<string | null> {
     // 0. Zero-latency in-memory cache check (bypasses GHL's 10-15s Elasticsearch indexing delay)
     const cachedId = this.getCachedContact(locId, details);
     if (cachedId) {
-      this.cacheContact(locId, cachedId, details);
       return cachedId;
     }
 
@@ -540,7 +572,6 @@ export class GHLService {
         );
         if (matchedByLeadId?.id) {
           console.log(`[GHLService] Matched contact by customField/email yelp_lead_id "${details.leadId}" in location ${locId} -> ${matchedByLeadId.id}`);
-          this.cacheContact(locId, matchedByLeadId.id, details);
           return matchedByLeadId.id;
         }
       }
@@ -562,7 +593,6 @@ export class GHLService {
 
         if (matchedByRecentName?.id) {
           console.log(`[GHLService] Matched recent contact by name & time window "${details.name}" (${matchedByRecentName.dateAdded}) in location ${locId} -> ${matchedByRecentName.id}`);
-          this.cacheContact(locId, matchedByRecentName.id, details);
           return matchedByRecentName.id;
         }
       }
@@ -594,7 +624,6 @@ export class GHLService {
 
         if (matchedByNotes?.id) {
           console.log(`[GHLService] Matched recent contact by customer request notes fingerprint in location ${locId} -> ${matchedByNotes.id}`);
-          this.cacheContact(locId, matchedByNotes.id, details);
           return matchedByNotes.id;
         }
       }
@@ -606,7 +635,6 @@ export class GHLService {
     if (details.email || details.phone) {
       const dupContact = await this.searchDuplicateContact(locId, details.email, details.phone, headers);
       if (dupContact?.id) {
-        this.cacheContact(locId, dupContact.id, details);
         return dupContact.id;
       }
     }
@@ -634,12 +662,39 @@ export class GHLService {
 
         if (match?.id) {
           console.log(`[GHLService] Matched contact by leadId/name "${details.leadId || details.name}" in location ${locId} -> ${match.id}`);
-          this.cacheContact(locId, match.id, details);
           return match.id;
         }
       } catch (err) {
         // Proceed to create if search finds no match
       }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find an existing contact or create one if not found
+   */
+  public static async findOrCreateContact(details: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    leadId: string;
+    source?: string;
+    locationId?: string;
+    isNewLead?: boolean;
+    customFields?: Array<{ id?: string; key?: string; value: any }>;
+  }): Promise<string> {
+    const locId = details.locationId || config.ghl.locationId;
+    const headers = this.getHeaders(locId);
+
+    const existingContactId = await this.resolveExistingContactId(locId, headers, details);
+    if (existingContactId) {
+      this.cacheContact(locId, existingContactId, details);
+      if (details.customFields && details.customFields.length > 0) {
+        await this.updateContactCustomFields(existingContactId, locId, details.customFields);
+      }
+      return existingContactId;
     }
 
     // 4. Create new contact
@@ -655,12 +710,18 @@ export class GHLService {
     const firstName = names[0];
     const lastName = names.slice(1).join(' ') || '(Yelp)';
 
-    const defaultCustomFields = [
-      {
-        key: 'yelp_lead_id',
-        value: details.leadId,
-      },
-    ];
+    const mergedCustomFields: Array<{ id?: string; key?: string; value: any }> = [];
+    const seenKeys = new Set<string>();
+    for (const cf of details.customFields || []) {
+      const identifier = cf.key || cf.id;
+      if (identifier && !seenKeys.has(identifier)) {
+        seenKeys.add(identifier);
+        mergedCustomFields.push(cf);
+      }
+    }
+    if (details.leadId && !seenKeys.has('yelp_lead_id')) {
+      mergedCustomFields.unshift({ key: 'yelp_lead_id', value: details.leadId });
+    }
 
     const createPayload: any = {
       locationId: locId,
@@ -671,9 +732,7 @@ export class GHLService {
       phone: details.phone,
       source: details.source || 'Yelp',
       tags: ['source: yelp', 'yelp-lead'],
-      customFields: details.customFields && details.customFields.length > 0 
-        ? [...defaultCustomFields, ...details.customFields] 
-        : defaultCustomFields,
+      customFields: mergedCustomFields,
     };
 
     try {
@@ -688,11 +747,15 @@ export class GHLService {
       }
       return newContactId;
     } catch (err: any) {
-      // If contact already exists in GHL, reuse matching contactId
+      // If contact already exists in GHL, reuse matching contactId and sync custom fields
       if (err.response?.data?.meta?.contactId) {
-        console.log(`[GHLService] Contact exists (${err.response.data.meta.contactId}), reusing existing contact.`);
-        this.cacheContact(locId, err.response.data.meta.contactId, details);
-        return err.response.data.meta.contactId;
+        const existingId = err.response.data.meta.contactId;
+        console.log(`[GHLService] Contact exists (${existingId}), reusing existing contact.`);
+        this.cacheContact(locId, existingId, details);
+        if (details.customFields && details.customFields.length > 0) {
+          await this.updateContactCustomFields(existingId, locId, details.customFields);
+        }
+        return existingId;
       }
       throw err;
     }

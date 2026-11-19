@@ -6,6 +6,7 @@ import { ThumbtackService } from './services/thumbtack';
 import { CronService } from './services/cron';
 import { TokenStore } from './services/token-store';
 import { SlackWebhookService } from './services/slack';
+import { buildYelpCustomFields, parseYelpProjectSummary } from './services/yelp-parser';
 
 const app = express();
 app.use(express.json({
@@ -117,8 +118,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       locationId = 'EKXbBmGEV6hnLQFQRPc7';
     }
 
-    // 1. Direct Zapier payload format (contains actual message, name, email, phone)
-    const directMessage = body?.message || body?.text || body?.body;
+    // 1. Direct Zapier payload format (contains actual message, name, email, phone, or project summary)
+    const rawSummary = body?.project_summary || body?.projectSummary || body?.survey_answers_formatted || body?.project?.survey_answers_formatted;
+    const directMessage = body?.message || body?.text || body?.body || body?.body_plain || rawSummary;
     if (directMessage) {
       const subject = body?.subject || '';
       let name = (body?.name || body?.customer_name || '').trim();
@@ -135,6 +137,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         { pattern: /(?:ya'?ll|y'?all)\s*maid/i, locationId: '19jBWYeRsrzDq6Oe1nth', name: "Ya'll Maid Austin" },
         { pattern: /rapids\s*cleaning/i, locationId: '8duUHE4ENvhQTCtg3z6o', name: 'Rapids Cleaning Services' },
         { pattern: /maid\s*co/i, locationId: 'IoU6ToP3okYmCe2CKNly', name: 'Maid Co Cleaning' },
+        { pattern: /poppy\s*pro(?:\s*clean(?:ing|er)?)?/i, locationId: 'n1jnBtlfzNKJC4BdrN2y', name: 'Poppy Pro Cleaning' },
       ];
 
       const combinedText = `${subject} ${directMessage}`;
@@ -157,21 +160,32 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
                             /confirm your email address on yelp|has invited you to manage|automatically forward mail to your email|you're closer to hiring a pro|keep an eye out for messages in your projects tab/i.test(directMessage);
       if (isSystemEmail) {
         addLog('[Yelp Webhook] Ignored administrative/system notification', { subject, name });
-        return res.status(200).send('IGNORED_SYSTEM_NOTIFICATION');
+        return;
       }
 
-      // Check if this is an initial Yelp Quote Request with questionnaire data
-      const isNewQuote = /requested a quote|How many bedrooms|new .* cleaning request/i.test(directMessage);
+      // Parse Yelp project summary / quote request details deterministically
+      const parsedSummary = parseYelpProjectSummary({
+        message: typeof directMessage === 'string' ? directMessage : String(directMessage),
+        subject,
+        projectSummary: typeof rawSummary === 'string' ? rawSummary : undefined,
+      });
+      const isMessageQuote = parseYelpProjectSummary({
+        message: typeof directMessage === 'string' ? directMessage : String(directMessage),
+        subject,
+      }).isProjectSummary;
+      const isNewQuote = parsedSummary.isProjectSummary;
 
       // Extract customer name from subject or body if missing or generic Yelp sender
       const isGenericName = !name || ['Yelp Customer', 'Yelp', 'Yelp Inbox', 'Yelp Notifications'].includes(name) || /@yelp\.com$/i.test(name);
       if (isGenericName) {
         if (/response to\s+(.+)$/i.test(subject)) {
           name = subject.match(/response to\s+(.+)$/i)![1].trim();
+        } else if (/Message from\s+(.+?)(?:\s+for\s+|$)/i.test(subject)) {
+          name = subject.match(/Message from\s+(.+?)(?:\s+for\s+|$)/i)![1].trim();
         } else if (/sent a message/i.test(subject)) {
           name = subject.split(/sent a message/i)[0].trim();
-        } else if (/New (?:lead|quote request)(?:\s+from)?\s+([^for\n]+?)(?:\s+for|\s*$)/i.test(subject)) {
-          name = subject.match(/New (?:lead|quote request)(?:\s+from)?\s+([^for\n]+?)(?:\s+for|\s*$)/i)![1].trim();
+        } else if (/New (?:lead|quote request)(?:\s+from)?\s+(.+?)(?:\s+for\s+|\s*$)/i.test(subject)) {
+          name = subject.match(/New (?:lead|quote request)(?:\s+from)?\s+(.+?)(?:\s+for\s+|\s*$)/i)![1].trim();
         } else {
           const nameMatch = directMessage.match(/([a-zA-Z\s]+?)\s+requested a quote/i);
           if (nameMatch) name = nameMatch[1].trim();
@@ -184,14 +198,14 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       if (!name) name = 'Yelp Customer';
 
       // Extract Yelp Lead ID from URL
-      const leadIdMatch = directMessage.match(/leads(?:%2F|\/)([a-zA-Z0-9_\-]+)/i) || 
-                          directMessage.match(/return_url=[^&\s]*%2Fleads%2F([a-zA-Z0-9_\-]+)/i);
+      const leadIdMatch = directMessage.match(/(?:leads|thread)(?:%2F|\/)([a-zA-Z0-9_\-]+)/i) ||
+                          directMessage.match(/return_url=[^&\s]*(?:%2F|\/)(?:leads|thread)(?:%2F|\/)([a-zA-Z0-9_\-]+)/i);
       const leadId = body?.lead_id || body?.conversation_id || (leadIdMatch ? leadIdMatch[1] : ('yelp_' + Date.now()));
 
       // Assign masked customer email
       let email = body?.email || body?.customer_email || body?.temporary_email_address;
       // Never treat Zapier addresses or the business owner's email as the customer's email
-      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices') || email.includes('maidcocleaningservices'))) {
+      if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices') || email.includes('maidcocleaningservices') || email.includes('poppyproclean'))) {
         email = undefined;
       }
       if (!email && leadId) {
@@ -203,41 +217,25 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         phone = undefined;
       }
 
-      let cleanMessage = directMessage.trim();
-      const customFields: Array<{ key?: string; id?: string; value: any }> = [];
+      let cleanMessage = String(directMessage).trim();
+      const customFields = isNewQuote ? buildYelpCustomFields(parsedSummary, leadId) : [];
 
-      if (isNewQuote) {
-        const bedMatch = directMessage.match(/How many bedrooms[^\r\n]*[\r\n]+([^\r\n]+)/i);
-        const bathMatch = directMessage.match(/How many bathrooms[^\r\n]*[\r\n]+([^\r\n]+)/i);
-        const freqMatch = directMessage.match(/How often do you want[^\r\n]*[\r\n]+([^\r\n]+)/i);
-        const serviceMatch = directMessage.match(/requested a quote.*?for\s+(?:a\s+)?([a-zA-Z\s\-]+?)(?:\.|\r|\n)/i) || directMessage.match(/new\s+([a-zA-Z\s\-]+?)\s+request/i);
-        const notesMatch = directMessage.match(/details you\'?d like to share[^\r\n]*[\r\n]+([^\r\n]+)/i);
-        const zipMatch = directMessage.match(/location do you need[^\r\n]*[\r\n]+([^\r\n]+)/i);
-
-        const bedrooms = bedMatch ? bedMatch[1].trim() : '';
-        const bathrooms = bathMatch ? bathMatch[1].trim() : '';
-        const frequency = freqMatch ? freqMatch[1].trim() : '';
-        const service = serviceMatch ? serviceMatch[1].trim() : 'Cleaning';
-        const notes = notesMatch ? notesMatch[1].trim() : '';
-        const zip = zipMatch ? zipMatch[1].trim() : '';
+      if (isMessageQuote) {
+        const serviceLabel = parsedSummary.serviceType || 'Cleaning';
+        const sizeParts = [
+          parsedSummary.bedrooms ? `${parsedSummary.bedrooms} bed` : '',
+          parsedSummary.bathrooms ? `${parsedSummary.bathrooms} bath` : '',
+        ].filter(Boolean);
 
         // Clean, elegant summary for the GHL conversation bubble
         cleanMessage = [
           `New Yelp Lead: ${name}`,
-          service ? `• Service: ${service}` : '',
-          bedrooms || bathrooms ? `• Size: ${bedrooms}${bathrooms ? ' / ' + bathrooms : ''}` : '',
-          frequency ? `• Frequency: ${frequency}` : '',
-          notes ? `• Customer Notes: ${notes}` : '',
-          zip ? `• Location: ${zip}` : '',
+          serviceLabel ? `• Service: ${serviceLabel}` : '',
+          sizeParts.length > 0 ? `• Size: ${sizeParts.join(' / ')}` : '',
+          parsedSummary.cleaningFrequency ? `• Frequency: ${parsedSummary.cleaningFrequency}` : '',
+          parsedSummary.notes ? `• Customer Notes: ${parsedSummary.notes}` : '',
+          parsedSummary.zip ? `• Location: ${parsedSummary.zip}` : '',
         ].filter(Boolean).join('\n');
-
-        // Populate Custom Fields
-        if (service) customFields.push({ key: 'yelp_service_type', value: service });
-        if (bedrooms) customFields.push({ key: 'yelp_bedrooms', value: bedrooms.replace(/[^0-9]/g, '') || bedrooms });
-        if (bathrooms) customFields.push({ key: 'yelp_bathrooms', value: bathrooms.replace(/[^0-9]/g, '') || bathrooms });
-        if (frequency) customFields.push({ key: 'yelp_cleaning_frequency', value: frequency });
-        if (notes) customFields.push({ key: 'yelp_notes__customer_request', value: notes });
-        customFields.push({ key: 'yelp_lead_id', value: leadId });
       } else {
         // Ongoing conversation reply: strip boilerplate and action buttons
         const yelpWroteMatch = cleanMessage.match(/(?:wrote|sent a message):\s*\n+([\s\S]+?)(?:\n\s*Reply to this email|\n\s*View on Yelp|\n\s*Respond to|\n\s*Sent from my|$)/i);
@@ -304,7 +302,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         locationId,
       });
 
-      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage.slice(0, 80)}" for ${name} into GHL contact ${contactId} (loc: ${locationId})`);
+      addLog(`[Yelp Ingest via Zapier] Ingested "${cleanMessage.slice(0, 80)}" for ${name} into GHL contact ${contactId} (loc: ${locationId})`, {
+        parsedCustomFields: customFields.map(cf => cf.key),
+      });
       return;
     }
 
@@ -341,6 +341,10 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
       // We only ingest messages originating from the consumer
       if (latestEvent.user_type === 'CONSUMER') {
         const messageText = latestEvent.text || 'New inquiry on Yelp';
+        const parsedBranchSummary = parseYelpProjectSummary({ message: messageText });
+        const branchCustomFields = parsedBranchSummary.isProjectSummary
+          ? buildYelpCustomFields(parsedBranchSummary, lead_id)
+          : undefined;
 
         // Match or create contact in GoHighLevel
         const contactId = await GHLService.findOrCreateContact({
@@ -349,6 +353,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
           phone: lead.phone_number || lead.user_phone_number,
           leadId: lead_id,
           source: 'Yelp',
+          customFields: branchCustomFields,
         });
 
         // Post inbound message into GHL Conversations
