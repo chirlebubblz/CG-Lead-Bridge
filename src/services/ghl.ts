@@ -88,6 +88,11 @@ const KNOWN_PIPELINES: Record<string, { pipelineId: string; stageId: string }> =
     pipelineId: 'q2zWSOq62ky1oZZpQMNQ',
     stageId: '4bc35075-b88c-4433-98b4-b55b5a78bbeb', // New Leads
   },
+  // Poppy Pro Cleaning
+  'n1jnBtlfzNKJC4BdrN2y': {
+    pipelineId: 'M55FemPD2jOiXXEdXvDb',
+    stageId: '264fee0e-4909-4ab3-abf0-12ce9080c986', // New Lead
+  },
 };
 
 const KNOWN_INTAKE_WORKFLOWS: Record<string, string> = {
