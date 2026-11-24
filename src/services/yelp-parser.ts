@@ -413,3 +413,28 @@ export function buildYelpCustomFields(
 
   return customFields;
 }
+
+const SYSTEM_EMAIL_SUBJECT_PATTERN =
+  /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice|forwarding confirmation|confirm the request|your request was sent|good news! your request/i;
+
+const SYSTEM_EMAIL_BODY_PATTERN =
+  /confirm your email address on yelp|has invited you to manage|automatically forward mail to your email|you're closer to hiring a pro|keep an eye out for messages in your projects tab/i;
+
+const SYSTEM_MARKETING_AND_MEETING_PATTERN =
+  /nearby jobs in your area|welcome to nearby jobs|welcome to yelp advertising|yelp customer success|your upcoming meeting with yelp|your yelp meeting|just a reminder that our meeting is starting|just a reminder that we['’]ll be ringing you|how was your recent experience with/i;
+
+/**
+ * Returns true when an inbound Yelp/Gmail notification is an administrative,
+ * marketing, Nearby Jobs, Customer Success, meeting reminder, or feedback email
+ * rather than a real customer lead or reply.
+ */
+export function isYelpSystemEmail(subject: string = '', directMessage: string = ''): boolean {
+  const safeSubject = subject || '';
+  const safeMessage = directMessage || '';
+  return (
+    SYSTEM_EMAIL_SUBJECT_PATTERN.test(safeSubject) ||
+    SYSTEM_EMAIL_BODY_PATTERN.test(safeMessage) ||
+    SYSTEM_MARKETING_AND_MEETING_PATTERN.test(safeSubject) ||
+    SYSTEM_MARKETING_AND_MEETING_PATTERN.test(safeMessage)
+  );
+}
