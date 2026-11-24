@@ -4,7 +4,6 @@ import {
   parseYelpProjectSummary,
   buildYelpCustomFields,
   normalizeRoomCount,
-  isYelpSystemEmail,
 } from '../src/services/yelp-parser';
 import { GHLService } from '../src/services/ghl';
 
@@ -281,45 +280,5 @@ describe('GHLService Multi-Tenant Poppy Pro Cleaning & Custom Field Sync', () =>
         }),
       })
     );
-  });
-});
-
-describe('Yelp System & Marketing Email Filter (isYelpSystemEmail)', () => {
-  it('ignores Yelp system, Nearby Jobs, Customer Success, meeting reminder, and survey emails', () => {
-    const cases: Array<[string, string]> = [
-      ['New Nearby Jobs in your area', 'Check out nearby leads'],
-      ['Welcome to Nearby Jobs on Yelp!', 'Get started today'],
-      ['Welcome to Yelp Advertising', 'Your campaign is live'],
-      ['Message from Yelp Customer Success', 'Checking in on your account'],
-      ['Your upcoming meeting with Yelp', 'See calendar invite details'],
-      ['Reminder: Your Yelp meeting is tomorrow', 'Join via Zoom'],
-      ['Just a reminder that our meeting is starting soon', 'Click here to join'],
-      ["Just a reminder that we'll be ringing you in 15 minutes", 'Talk soon'],
-      ['Just a reminder that we’ll be ringing you shortly', 'Talk soon'],
-      ['How was your recent experience with Yelp Support?', 'Take a quick survey'],
-      ['RE: Update', 'Nearby Jobs in your area: 4 new cleaning requests'],
-      ['Confirm your email address', 'Click to confirm'],
-      ['Fwd: Receipt', "You're closer to hiring a pro! Keep an eye out for messages in your projects tab."],
-    ];
-
-    for (const [subject, body] of cases) {
-      expect(isYelpSystemEmail(subject, body), `Expected ignored for subject="${subject}"`).toBe(true);
-    }
-  });
-
-  it('does not ignore real customer quote requests or replies', () => {
-    expect(
-      isYelpSystemEmail(
-        "Capable Clean's response to Chirle",
-        'Chirle requested a quote from Capable Clean for a deep cleaning. 2 bedrooms, 2 bathrooms.'
-      )
-    ).toBe(false);
-
-    expect(
-      isYelpSystemEmail(
-        'Message from Sarah Connor for Poppy Pro Cleaning',
-        'Hi, are you available this Friday morning for a move-out clean?'
-      )
-    ).toBe(false);
   });
 });

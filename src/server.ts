@@ -6,7 +6,7 @@ import { ThumbtackService } from './services/thumbtack';
 import { CronService } from './services/cron';
 import { TokenStore } from './services/token-store';
 import { SlackWebhookService } from './services/slack';
-import { buildYelpCustomFields, isYelpSystemEmail, parseYelpProjectSummary } from './services/yelp-parser';
+import { buildYelpCustomFields, parseYelpProjectSummary } from './services/yelp-parser';
 
 const app = express();
 app.use(express.json({
@@ -155,8 +155,9 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
         }
       }
 
-      // Ignore Yelp & Gmail administrative/system/marketing emails (e.g. email verifications, manager invitations, forwarding confirmations, consumer receipts, Nearby Jobs, Yelp Customer Success, meeting reminders, surveys)
-      const isSystemEmail = isYelpSystemEmail(subject, typeof directMessage === 'string' ? directMessage : String(directMessage));
+      // Ignore Yelp & Gmail administrative/system emails (e.g. email verifications, manager invitations, forwarding confirmations, consumer receipts)
+      const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice|forwarding confirmation|confirm the request|your request was sent|good news! your request/i.test(subject) ||
+                            /confirm your email address on yelp|has invited you to manage|automatically forward mail to your email|you're closer to hiring a pro|keep an eye out for messages in your projects tab/i.test(directMessage);
       if (isSystemEmail) {
         addLog('[Yelp Webhook] Ignored administrative/system notification', { subject, name });
         return;
