@@ -7,8 +7,15 @@ import { CronService } from './services/cron';
 import { TokenStore } from './services/token-store';
 import { SlackWebhookService } from './services/slack';
 import { buildYelpCustomFields, parseYelpProjectSummary } from './services/yelp-parser';
+import {
+  detectClientByBrandText,
+  getClientBySlug,
+  getClientStatusSummary,
+  normalizeLocationId,
+  recordClientHit,
+} from './clients';
 
-const app = express();
+export const app = express();
 app.use(express.json({
   verify: (req: any, _res, buf) => {
     req.rawBody = buf;
@@ -51,6 +58,13 @@ app.get('/health', (req: Request, res: Response) => {
     uptime: process.uptime(),
     webhookActive: !!tokens?.webhookId,
     webhookExpiresAt: tokens?.webhookExpiresAt ? new Date(tokens.webhookExpiresAt).toISOString() : null,
+  });
+});
+
+app.get('/clients', (_req: Request, res: Response) => {
+  res.json({
+    clients: getClientStatusSummary(),
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -106,54 +120,56 @@ app.all('/test/inbound', async (req: Request, res: Response) => {
  * 1. Inbound Webhook from Yelp
  * Triggered when a new lead or message is created on Yelp
  */
-app.post('/webhook/yelp', async (req: Request, res: Response) => {
+app.post(['/webhook/yelp', '/webhook/yelp/:clientSlug'], async (req: Request, res: Response) => {
+  const rawSlug = req.params.clientSlug;
+  const clientSlug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
+  const lockedClient = clientSlug ? getClientBySlug(clientSlug) : undefined;
+  if (clientSlug && !lockedClient) {
+    addLog('[Yelp Webhook] Rejected unknown client slug', { clientSlug });
+    res.status(404).json({ success: false, error: 'Unknown client slug' });
+    return;
+  }
+
+  const body = req.body;
+  const rawSummary = body?.project_summary || body?.projectSummary || body?.survey_answers_formatted || body?.project?.survey_answers_formatted;
+  const directMessage = body?.message || body?.text || body?.body || body?.body_plain || rawSummary;
+  const subject = body?.subject || '';
+
+  let locationId: string | undefined = lockedClient?.locationId;
+  if (!locationId) {
+    locationId = normalizeLocationId(body?.location_id || body?.locationId || body?.location);
+    if (directMessage) {
+      const combinedText = `${subject} ${directMessage}`;
+      const brandMatch = detectClientByBrandText(combinedText);
+      if (brandMatch && locationId !== brandMatch.locationId) {
+        addLog(`[Brand Guardrail] Auto-corrected locationId from ${locationId || 'unset'} to ${brandMatch.locationId} based on brand match "${brandMatch.name}"`, {
+          subject,
+          originalLocationId: locationId,
+          correctedLocationId: brandMatch.locationId,
+        });
+        locationId = brandMatch.locationId;
+      }
+    }
+
+    if (!locationId && directMessage) {
+      addLog('[Yelp Webhook] Rejected payload missing location_id and matching brand', { subject });
+      res.status(400).json({ success: false, error: 'Missing location_id and no matching brand detected' });
+      return;
+    }
+  }
+
+  if (locationId) {
+    recordClientHit(locationId, req.path);
+  }
+
   res.status(200).send('OK'); // Acknowledge Yelp/Zapier immediately with 2XX
 
   try {
-    const body = req.body;
     addLog('[Yelp Webhook] Received webhook POST', body);
 
-    let locationId = body?.location_id || body?.locationId || body?.location || config.ghl.locationId;
-    if (locationId === 'EKXbBmGEV6hnLQFQRPc') {
-      locationId = 'EKXbBmGEV6hnLQFQRPc7';
-    }
-
     // 1. Direct Zapier payload format (contains actual message, name, email, phone, or project summary)
-    const rawSummary = body?.project_summary || body?.projectSummary || body?.survey_answers_formatted || body?.project?.survey_answers_formatted;
-    const directMessage = body?.message || body?.text || body?.body || body?.body_plain || rawSummary;
-    if (directMessage) {
-      const subject = body?.subject || '';
+    if (directMessage && locationId) {
       let name = (body?.name || body?.customer_name || '').trim();
-
-      // Brand Guardrail: Auto-detect brand from subject/body to prevent cross-brand contamination
-      const BRAND_LOCATION_MAP: Array<{ pattern: RegExp; locationId: string; name: string }> = [
-        { pattern: /puget\s*sound\s*cleaners/i, locationId: 'MucxtGIfmvLViGQWD0CG', name: 'Puget Sound Cleaners' },
-        { pattern: /mum'?s\s*cleaning/i, locationId: 'YVtPYdLotWLwuy5AA8Vv', name: "Mum's Cleaning Services Chicago" },
-        { pattern: /jacksonville\s*cleaning/i, locationId: 'EKXbBmGEV6hnLQFQRPc7', name: 'Jacksonville Cleaning Co' },
-        { pattern: /capable\s*clean/i, locationId: 's94e80clit6bCL9VBWgl', name: 'Capable Clean' },
-        { pattern: /ascend\s*cleaning/i, locationId: 'IdJoWa68hD3nVj45Fv7f', name: 'Ascend Cleaning' },
-        { pattern: /sparkle\s*squad/i, locationId: 'ThUMNqsKmDfYKMF0jsBb', name: 'The Sparkle Squad Co' },
-        { pattern: /sunny\s*side\s*clean/i, locationId: 'WOwi6fpdaZavuqHU8Rux', name: 'Sunny Side Clean Team' },
-        { pattern: /(?:ya'?ll|y'?all)\s*maid/i, locationId: '19jBWYeRsrzDq6Oe1nth', name: "Ya'll Maid Austin" },
-        { pattern: /rapids\s*cleaning/i, locationId: '8duUHE4ENvhQTCtg3z6o', name: 'Rapids Cleaning Services' },
-        { pattern: /maid\s*co/i, locationId: 'IoU6ToP3okYmCe2CKNly', name: 'Maid Co Cleaning' },
-        { pattern: /poppy\s*pro(?:\s*clean(?:ing|er)?)?/i, locationId: 'n1jnBtlfzNKJC4BdrN2y', name: 'Poppy Pro Cleaning' },
-      ];
-
-      const combinedText = `${subject} ${directMessage}`;
-      for (const brand of BRAND_LOCATION_MAP) {
-        if (brand.pattern.test(combinedText)) {
-          if (locationId !== brand.locationId) {
-            addLog(`[Brand Guardrail] Auto-corrected locationId from ${locationId} to ${brand.locationId} based on brand match "${brand.name}"`, {
-              subject,
-              originalLocationId: locationId,
-              correctedLocationId: brand.locationId,
-            });
-            locationId = brand.locationId;
-          }
-          break;
-        }
-      }
 
       // Ignore Yelp & Gmail administrative/system emails (e.g. email verifications, manager invitations, forwarding confirmations, consumer receipts)
       const isSystemEmail = /confirm your email|verify your email|invited you to manage|invitation from|welcome to yelp|your yelp invoice|forwarding confirmation|confirm the request|your request was sent|good news! your request/i.test(subject) ||
@@ -354,6 +370,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
           leadId: lead_id,
           source: 'Yelp',
           customFields: branchCustomFields,
+          ...(locationId ? { locationId } : {}),
         });
 
         // Post inbound message into GHL Conversations
@@ -362,6 +379,7 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
           message: messageText,
           leadId: lead_id,
           eventId: latestEvent.event_id,
+          ...(locationId ? { locationId } : {}),
         });
 
         console.log(`[Yelp Webhook] Successfully ingested message from Yelp into GHL contact ${contactId}`);
@@ -379,13 +397,24 @@ app.post('/webhook/yelp', async (req: Request, res: Response) => {
  * (preventing GHL 422 "email must be an email" errors when Yelp Temporary Email is empty)
  * and reconciles contacts by Yelp Lead ID before falling back to GHL native upsert.
  */
-app.post('/contacts/upsert', async (req: Request, res: Response) => {
+app.post(['/contacts/upsert', '/contacts/upsert/:clientSlug'], async (req: Request, res: Response) => {
   try {
-    const payload = { ...(req.body || {}) };
-    let locationId = payload.locationId || payload.location_id || config.ghl.locationId;
-    if (locationId === 'EKXbBmGEV6hnLQFQRPc') {
-      locationId = 'EKXbBmGEV6hnLQFQRPc7';
+    const rawSlug = req.params.clientSlug;
+    const clientSlug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
+    const lockedClient = clientSlug ? getClientBySlug(clientSlug) : undefined;
+    if (clientSlug && !lockedClient) {
+      addLog('[Smart Upsert] Rejected unknown client slug', { clientSlug });
+      return res.status(404).json({ success: false, error: 'Unknown client slug' });
     }
+
+    const payload = { ...(req.body || {}) };
+    const locationId = lockedClient?.locationId || normalizeLocationId(payload.locationId || payload.location_id);
+    if (!locationId) {
+      addLog('[Smart Upsert] Rejected payload missing locationId');
+      return res.status(400).json({ success: false, error: 'Missing locationId' });
+    }
+
+    recordClientHit(locationId, req.path);
     payload.locationId = locationId;
     addLog('[Smart Upsert] Received Zapier upsert payload', payload);
 
@@ -870,7 +899,9 @@ app.get(['/oauth/callback', '/oauth/crm/callback', '/oauth/ghl/callback'], async
 
 // Start Server
 const HOST = '0.0.0.0';
-app.listen(config.port, HOST, () => {
-  console.log(`[CleanGenie Lead Bridge] Running on http://${HOST}:${config.port}`);
-  CronService.init();
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(config.port, HOST, () => {
+    console.log(`[CleanGenie Lead Bridge] Running on http://${HOST}:${config.port}`);
+    CronService.init();
+  });
+}

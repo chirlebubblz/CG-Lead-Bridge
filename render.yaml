@@ -2,7 +2,8 @@ services:
   - type: web
     name: cleangenie-lead-bridge
     env: node
-    plan: free
+    # Single multi-tenant Starter service handling all clients via /webhook/yelp/:clientSlug and /contacts/upsert/:clientSlug
+    plan: starter
     buildCommand: npm install --production=false && npm run build
     startCommand: npm start
     healthCheckPath: /health

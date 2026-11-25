@@ -8,7 +8,7 @@ export const config = {
   ghl: {
     clientId: process.env.GHL_CLIENT_ID || '',
     clientSecret: process.env.GHL_CLIENT_SECRET || '',
-    locationId: process.env.GHL_LOCATION_ID || 'EKXbBmGEV6hnLQFQRPc7',
+    locationId: process.env.GHL_LOCATION_ID || '',
     conversationProviderId: process.env.GHL_CONVERSATION_PROVIDER_ID || '',
     accessToken: process.env.GHL_ACCESS_TOKEN || '',
     apiUrl: 'https://services.leadconnectorhq.com',
