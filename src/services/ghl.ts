@@ -462,29 +462,44 @@ export class GHLService {
 
       console.log(`[Auto-Reconcile] Detected ${duplicates.length} twin duplicate(s) for ${rawName} (${primaryContactId}) in loc ${locationId}`);
 
-      for (const dup of duplicates) {
-        // Decide which contact to keep: check if other contact has more human messages
-        try {
-          const dupConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${dup.id}`, { headers });
-          const primaryConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${primaryContactId}`, { headers });
-          const dupConv = dupConvRes.data?.conversations?.[0];
-          const primaryConv = primaryConvRes.data?.conversations?.[0];
+      const isRealYelpRelayEmail = (e?: string | null): boolean =>
+        typeof e === 'string' && /^leadsapi\+[0-9a-f]{32}@messaging\.yelp\.com$/i.test(e.trim());
 
-          let dupMsgsCount = 0;
-          let primaryMsgsCount = 0;
-          if (dupConv?.id) {
-            const m = await axios.get(`${config.ghl.apiUrl}/conversations/${dupConv.id}/messages`, { headers });
-            dupMsgsCount = m.data?.messages?.messages?.length || 0;
-          }
-          if (primaryConv?.id) {
-            const m = await axios.get(`${config.ghl.apiUrl}/conversations/${primaryConv.id}/messages`, { headers });
-            primaryMsgsCount = m.data?.messages?.messages?.length || 0;
-          }
+      for (const dup of duplicates) {
+        // Decide which contact to keep: always prefer a valid 32-char hex Yelp relay email,
+        // otherwise fall back to whichever contact has more messages
+        try {
+          const primaryHasRealEmail = isRealYelpRelayEmail(contact.email);
+          const dupHasRealEmail = isRealYelpRelayEmail(dup.email);
 
           let discardId = dup.id;
-          if (dupMsgsCount > primaryMsgsCount) {
+          if (primaryHasRealEmail && !dupHasRealEmail) {
+            discardId = dup.id;
+            console.log(`[Auto-Reconcile] Preserving primary contact ${primaryContactId} (has valid 32-char hex Yelp relay email); discarding ${dup.id}`);
+          } else if (dupHasRealEmail && !primaryHasRealEmail) {
             discardId = primaryContactId;
-            console.log(`[Auto-Reconcile] Duplicate ${dup.id} has more messages (${dupMsgsCount} vs ${primaryMsgsCount}), swapping discard target to ${primaryContactId}`);
+            console.log(`[Auto-Reconcile] Preserving duplicate contact ${dup.id} (has valid 32-char hex Yelp relay email); discarding ${primaryContactId}`);
+          } else {
+            const dupConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${dup.id}`, { headers });
+            const primaryConvRes = await axios.get(`${config.ghl.apiUrl}/conversations/search?locationId=${locationId}&contactId=${primaryContactId}`, { headers });
+            const dupConv = dupConvRes.data?.conversations?.[0];
+            const primaryConv = primaryConvRes.data?.conversations?.[0];
+
+            let dupMsgsCount = 0;
+            let primaryMsgsCount = 0;
+            if (dupConv?.id) {
+              const m = await axios.get(`${config.ghl.apiUrl}/conversations/${dupConv.id}/messages`, { headers });
+              dupMsgsCount = m.data?.messages?.messages?.length || 0;
+            }
+            if (primaryConv?.id) {
+              const m = await axios.get(`${config.ghl.apiUrl}/conversations/${primaryConv.id}/messages`, { headers });
+              primaryMsgsCount = m.data?.messages?.messages?.length || 0;
+            }
+
+            if (dupMsgsCount > primaryMsgsCount) {
+              discardId = primaryContactId;
+              console.log(`[Auto-Reconcile] Duplicate ${dup.id} has more messages (${dupMsgsCount} vs ${primaryMsgsCount}), swapping discard target to ${primaryContactId}`);
+            }
           }
 
           // Delete duplicate opportunity

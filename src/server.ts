@@ -224,9 +224,9 @@ app.post(['/webhook/yelp', '/webhook/yelp/:clientSlug'], async (req: Request, re
       if (email && (email.includes('zapiermail.com') || email.includes('jerafisabalo') || email.includes('thesparklesquadco') || email.includes('sparklesquad') || email.includes('jacksonvillecleaningco') || email.includes('selectservices') || email.includes('sunnyside') || email.includes('capableclean') || email.includes('ascendcleaning') || email.includes('pugetsoundcleaners') || email.includes('mumscleaning') || email.includes('rapidscleaning') || email.includes('rapidscleaningservices') || email.includes('yallmaid') || email.includes('yallmaidaustincleaningservices') || email.includes('maidcocleaningservices') || email.includes('poppyproclean'))) {
         email = undefined;
       }
-      if (!email && leadId) {
-        email = `leadsapi+${leadId}@messaging.yelp.com`;
-      }
+      // Note: Yelp's messaging.yelp.com relay only delivers to Yelp's 32-char hex temporary email
+      // provided by Zap 1, never a fabricated 22-char leadId address. Leave email undefined when
+      // absent from Zap 3 so GHL never gets a silent-drop relay address.
 
       let phone = body?.phone || body?.customer_phone || body?.phone_number;
       if (phone && (phone.includes('8777679357') || phone.includes('877-767-9357') || phone.includes('877.767.9357') || phone.includes('767-9357') || phone.includes('855-380-9357') || phone.includes('8553809357'))) {
